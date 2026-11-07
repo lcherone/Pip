@@ -801,7 +801,8 @@ export class BehaviourEngine {
         speech: null, fx: 'none', event: 'app_terminated', source: ended.source, note,
       }, input)
     }
-    if (!moving && !duringIntro && input.cursor && input.mode !== 'focus' && input.mode !== 'sleep') {
+    const performingTrick = this.plan && isTrick(this.plan.emote) && input.now < this.plan.until
+    if (!performingTrick && !moving && !duringIntro && input.cursor && input.mode !== 'focus' && input.mode !== 'sleep') {
       const dx = input.cursor.x - input.x
       const dy = input.cursor.y - (input.y - 90)
       if (input.cursor.speed < 260 && Math.hypot(dx, dy) < 110 && this.ready('sniff', input.now, 12)) {

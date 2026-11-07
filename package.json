@@ -12,7 +12,8 @@
     "build:helper": "mkdir -p native/bin && swiftc -O -o native/bin/pip-desktop-helper native/helper.swift -framework AppKit -framework CoreGraphics -framework IOKit",
     "predev": "npm run build:helper",
     "prebuild": "npm run build:helper",
-    "package": "npm run build && electron-builder --mac dir",
+    "package": "npm run build:helper && npm run build && electron-builder --mac dmg --publish never",
+    "package:dir": "npm run build:helper && npm run build && electron-builder --mac dir --publish never",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "codegen:codex": "codex app-server generate-ts --out vendor/codex-app-server",
@@ -43,7 +44,7 @@
       "category": "public.app-category.entertainment",
       "identity": null,
       "target": [
-        "dir"
+        "dmg"
       ],
       "icon": "resources/icon.png",
       "extendInfo": {

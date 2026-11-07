@@ -186,13 +186,16 @@ npm run package
 | `npm run build:helper` | Compile the native helper with AppKit, CoreGraphics, and IOKit. |
 | `npm run icons` | Generate the application and template tray icons. |
 | `npm run build` | Compile the helper and Electron app; app output goes to `out/`. |
-| `npm run package` | Build an unsigned macOS application directory under `release/`. |
+| `npm run package` | Build a macOS DMG installer under `release/` for the current Mac's architecture. |
+| `npm run package:dir` | Build only the macOS application directory under `release/`. |
 | `npm run preview` | Preview an existing Electron build. |
 | `npm run typecheck` | Run the TypeScript check. |
 | `npm test` | Run the Vitest suite; live Codex calls are opt-in. |
 | `npm run codegen:codex` | Refresh protocol types using the installed Codex App Server. |
 
-Packaging currently targets a local macOS app directory, not a signed/notarised installer or an automatic update channel. A downloaded unsigned build may need macOS approval before opening. Windows and Linux support are not configured.
+To install, open the DMG, drag **Pip** into **Applications**, then open Pip from Applications. Quit any development copy first. Enable desktop awareness in Pip's settings and grant macOS Accessibility permission if requested for window interactions.
+
+The local build is not Developer ID signed or notarised and has no automatic update channel. macOS may require approval before opening a downloaded copy. Builds target the current Mac's architecture; an Apple Silicon build requires an Apple Silicon Mac. Windows and Linux support are not configured.
 
 ### When the puppy needs a little help
 
