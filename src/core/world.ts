@@ -259,7 +259,7 @@ function nodesFor(input: WorldInput, surfaces: Surface[]): { nodes: NavNode[]; e
     nodes.push(ground, top)
     const drop = groundY - surface.y
     const display = input.displays.find(item => item.id === surface.displayId) ?? input.displays.find(item => x >= item.bounds.x && x <= item.bounds.x + item.bounds.w)
-    const minimum = input.minimumPerchY ?? (display ? display.workArea.y + 12 : -Infinity)
+    const minimum = input.minimumPerchY ?? (display ? display.workArea.y + (input.petSize?.h ?? 130) : -Infinity)
     const rise = input.climbing && surface.y >= minimum ? ascentGait(drop, input.traits, true) : null
     if (rise && input.traits.energy > 0.2) {
       const caution = input.traits.sleepiness * 0.8 + (1 - input.traits.confidence) * 0.4

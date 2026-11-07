@@ -87,6 +87,28 @@ describe('surface physics and recovery', () => {
     for (let i = 0; i < 180; i++) move.update(1 / 60, { kind: 'idle' }, { ...physics, windows: [] })
     expect(move.y).toBe(848); expect(move.airborne).toBe(false)
   })
+  it('leaves an obstructed paw position even when the platform centre remains visible', () => {
+    const move = new MovementController(); move.reset(650, 352, window.id)
+    move.update(1 / 60, { kind: 'idle' }, physics)
+    const cover = { ...window, id: 'small-front', bounds: { x: 600, y: 300, w: 200, h: 200 } }
+    move.update(1 / 60, { kind: 'idle' }, { ...physics, windows: [cover, window] })
+    expect(move.surfaceId).toBeNull(); expect(move.airborne).toBe(true)
+    const graph = navigationGraph(world({ windows: [cover, window] }))
+    expect(graph.nodes.some(node => node.id === 'top:editor:right')).toBe(false)
+  })
+  it('crosses nearby platforms with a crouch and airborne arc', () => {
+    const move = new MovementController(); move.reset(660, 352, window.id)
+    const target = { ...window, id: 'next', bounds: { x: 720, y: 350, w: 300, h: 400 } }
+    const model = world({ x: 660, y: 352, surfaceId: window.id, windows: [window, target] })
+    expect(navigationGraph(model).edges.some(edge => edge.kind === 'cross_surface')).toBe(true)
+    const intent = { kind: 'jump' as const, targetX: 760, targetY: 352, surfaceId: target.id }
+    let flew = false
+    for (let i = 0; i < 100 && move.surfaceId !== target.id; i++) {
+      move.update(1 / 60, intent, { ...physics, windows: [window, target] })
+      flew ||= move.airborne
+    }
+    expect(flew).toBe(true); expect(move.surfaceId).toBe(target.id)
+  })
   it('relocates visibly when the supporting display disconnects', () => {
     const move = new MovementController(); move.reset(-900, 352, window.id)
     move.update(1 / 60, { kind: 'idle' }, { ...physics, windows: [] })

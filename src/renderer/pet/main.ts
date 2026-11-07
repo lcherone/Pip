@@ -358,7 +358,7 @@ function draw(dt: number): void {
     x: movement.x,
     y: movement.y,
     floorY: floor.floorY,
-    minimumPerchY: (desktop?.displays.find(display => display.id === floor.displayId)?.workArea.y ?? 40) + 12,
+    minimumPerchY: (desktop?.displays.find(display => display.id === floor.displayId)?.workArea.y ?? 40) + 130 * settings.scale,
     minX: floor.minX,
     maxX: floor.maxX,
     cursor: cursorFresh && settings.followCursor ? { x: pointer.x, y: pointer.y, speed: pointer.speed } : null,

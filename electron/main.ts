@@ -53,6 +53,7 @@ let helperBuffer = ''
 let helperRestarts = 0
 const typingObserver = new TypingObserver()
 let lastWindows: DesktopWindow[] = []
+let lastDesktopPayload: DesktopPayload | null = null
 let desktopSeeded = false
 let cursorShift = { dx: 0, dy: 0 }
 let petHiddenByPlayground = false
@@ -218,7 +219,10 @@ function createUtility(page: 'settings' | 'playground'): BrowserWindow {
       sandbox: true,
     },
   })
-  window.once('ready-to-show', () => revealUtility(window))
+  window.once('ready-to-show', () => {
+    revealUtility(window)
+    if (page === 'settings' && lastDesktopPayload) window.webContents.send('desktop', desktopCapabilities(lastDesktopPayload))
+  })
   loadPage(window, page)
   window.on('closed', () => {
     if (page === 'settings') settingsWindow = null
@@ -532,7 +536,18 @@ function consumeHelper(text: string): void {
     const title = state.settings.allowWindowTitles ? payload.windows.find(w => w.focused)?.title : undefined
     brain.observeApplication(front.name, title)
   }
+  sendDesktop(payload)
+}
+
+/** Settings receives capabilities without application names, titles or activity. */
+function desktopCapabilities(payload: DesktopPayload): DesktopPayload {
+  return { ...payload, windows: [], frontmost: null, typing: null, events: [] }
+}
+
+function sendDesktop(payload: DesktopPayload): void {
+  lastDesktopPayload = payload
   pet?.webContents.send('desktop', payload)
+  settingsWindow?.webContents.send('desktop', desktopCapabilities(payload))
 }
 
 function publishDesktop(windows: DesktopWindow[], source: DesktopPayload['source'], permission: DesktopPayload['permission']): void {
@@ -546,7 +561,7 @@ function publishDesktop(windows: DesktopWindow[], source: DesktopPayload['source
     source,
     events: [],
   }
-  pet?.webContents.send('desktop', payload)
+  sendDesktop(payload)
 }
 
 async function findCodex(): Promise<string | null> {

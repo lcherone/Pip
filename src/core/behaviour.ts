@@ -772,7 +772,7 @@ export class BehaviourEngine {
   }
 
   get worldView(): WorldView | null {
-    return this.worldCache ? { ...this.worldCache.view, activeGoal: this.goal, path: this.route, attentionState: this.attentionState, perception: this.perception, goalHistory: this.goalHistory, builds: this.worldBuilds } : null
+    return this.worldCache ? { ...this.worldCache.view, activeGoal: this.goal?.status === 'active' ? this.goal : null, path: this.route, attentionState: this.attentionState, perception: this.perception, goalHistory: this.goalHistory, builds: this.worldBuilds } : null
   }
 
   private worldInput(input: BehaviourInput) {

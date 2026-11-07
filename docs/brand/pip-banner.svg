@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+  <title id="title">Pip — small puppy, big desktop adventures</title>
+  <desc id="desc">A cream and golden banner with the Pip wordmark, a paw emblem, and an illustrated golden puppy perched on a desktop window. His speech bubble says: Hi. I saved you a wag.</desc>
+  <defs>
+    <linearGradient id="fur" x1="0" y1="0" x2="0.7" y2="1">
+      <stop stop-color="#f8ddb0"/>
+      <stop offset="0.55" stop-color="#e2a44b"/>
+      <stop offset="1" stop-color="#b8742e"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.5" fill="#b8742e" opacity="0.12"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="520" rx="28" fill="#fff6ea"/>
+  <path d="M767 0h485a28 28 0 0 1 28 28v464a28 28 0 0 1-28 28H731c70-59 8-124 46-202 36-76-60-160-10-318Z" fill="#f8ddb0" opacity="0.7"/>
+  <rect x="744" y="24" width="512" height="472" fill="url(#dots)"/>
+  <g font-family="ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif" fill="#3c2b29">
+    <text x="76" y="91" font-size="16" font-weight="700" letter-spacing="3">YOUR DESKTOP. HIS LITTLE WORLD.</text>
+    <text x="68" y="254" font-size="172" font-weight="800" letter-spacing="-8">Pip</text>
+    <g transform="translate(352 144) rotate(13)" fill="#e2a44b">
+      <ellipse cx="4" cy="34" rx="10" ry="14" transform="rotate(-25 4 34)"/>
+      <ellipse cx="25" cy="17" rx="10" ry="14"/>
+      <ellipse cx="49" cy="17" rx="10" ry="14"/>
+      <ellipse cx="70" cy="34" rx="10" ry="14" transform="rotate(25 70 34)"/>
+      <path d="M37 37C22 37 21 49 9 61c-15 19 5 31 21 24 5-2 9-2 14 0 16 7 36-5 21-24C53 49 52 37 37 37Z"/>
+    </g>
+    <text x="76" y="316" font-size="32" font-weight="700">Small puppy.</text>
+    <text x="76" y="358" font-size="32" font-weight="700">Big desktop adventures.</text>
+    <text x="76" y="418" font-size="19">A little golden company for your Mac.</text>
+    <text x="76" y="451" font-size="15" fill="#704831">WINDOW WALKIES / TINY NAPS / OPTIONAL CODEX</text>
+  </g>
+  <!-- A stylised brand illustration; the app draws its own procedural puppy. -->
+  <rect x="797" y="336" width="365" height="126" rx="17" fill="#b8742e" opacity="0.12"/>
+  <rect x="787" y="324" width="365" height="126" rx="17" fill="#fff6ea" stroke="#b8742e" stroke-width="2"/>
+  <path d="M788 365h363" stroke="#f8ddb0" stroke-width="2"/>
+  <g fill="#e2a44b">
+    <circle cx="813" cy="345" r="5"/>
+    <circle cx="832" cy="345" r="5" opacity="0.65"/>
+    <circle cx="851" cy="345" r="5" opacity="0.35"/>
+  </g>
+  <g stroke="#f8ddb0" stroke-width="8" stroke-linecap="round">
+    <path d="M815 392h114M815 416h75M956 392h103"/>
+  </g>
+  <ellipse cx="976" cy="322" rx="119" ry="10" fill="#3c2b29" opacity="0.1"/>
+  <path d="M906 278q-76-13-63-68" fill="none" stroke="#e2a44b" stroke-width="23" stroke-linecap="round"/>
+  <path d="M844 217q-3-8 0-13" fill="none" stroke="#f8ddb0" stroke-width="23" stroke-linecap="round"/>
+  <ellipse cx="954" cy="272" rx="67" ry="48" fill="url(#fur)"/>
+  <ellipse cx="930" cy="289" rx="33" ry="31" fill="#d3923d"/>
+  <ellipse cx="925" cy="318" rx="30" ry="12" fill="#e2a44b"/>
+  <ellipse cx="989" cy="274" rx="24" ry="35" fill="#fff6ea"/>
+  <path d="M981 270v47M1010 268v49" stroke="#e2a44b" stroke-width="19" stroke-linecap="round"/>
+  <ellipse cx="982" cy="320" rx="15" ry="9" fill="#f8ddb0"/>
+  <ellipse cx="1013" cy="320" rx="15" ry="9" fill="#f8ddb0"/>
+  <ellipse cx="1001" cy="211" rx="56" ry="56" fill="url(#fur)"/>
+  <ellipse cx="964" cy="226" rx="23" ry="43" transform="rotate(-13 964 226)" fill="#b8742e"/>
+  <ellipse cx="961" cy="220" rx="14" ry="30" transform="rotate(-13 961 220)" fill="#d3923d"/>
+  <ellipse cx="1039" cy="236" rx="35" ry="23" fill="#fff6ea"/>
+  <ellipse cx="1023" cy="207" rx="10" ry="13" fill="#fffdfb"/>
+  <ellipse cx="1026" cy="209" rx="6" ry="8" fill="#3c2b29"/>
+  <circle cx="1028" cy="206" r="2.4" fill="#fffdfb"/>
+  <ellipse cx="1065" cy="229" rx="8" ry="6" fill="#3c2b29"/>
+  <path d="M1039 248q12 4 19-4" fill="none" stroke="#3c2b29" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="1011" cy="232" rx="9" ry="5" fill="#f4b8ab" opacity="0.7"/>
+  <g font-family="'Trebuchet MS', sans-serif" fill="#3c2b29">
+    <path d="M896 60h265q19 0 19 19v39q0 19-19 19h-100l-23 23 3-23H896q-19 0-19-19V79q0-19 19-19Z" fill="#fff6ea" stroke="#e2a44b" stroke-width="2"/>
+    <text x="899" y="107" font-size="20" font-weight="700">Hi. I saved you a wag.</text>
+  </g>
+  <g fill="#b8742e" opacity="0.7">
+    <path d="m1154 233 4 12 13 4-13 4-4 12-4-12-13-4 13-4Z"/>
+    <path d="m805 147 3 9 9 3-9 3-3 9-3-9-9-3 9-3Z"/>
+  </g>
+</svg>

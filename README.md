@@ -212,3 +212,5 @@ This checkout is marked `private` in `package.json` and has no licence file. No 
 
 <p align="center"><strong>Small puppy. Big desktop adventures.</strong><br />
 <em>“That one got the whole tail.”</em> 🐾</p>
+
+Pip’s living world now includes intentional investigation, cautious routes, moving-window attachment, long perch rests, stable attention and local resting habits. The playground’s **World source** selects repeatable simulations or the actual desktop pet’s read-only debugger. See [Living desktop behaviour and verification](docs/WORLD.md).
