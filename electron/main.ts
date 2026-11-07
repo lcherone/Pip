@@ -184,6 +184,8 @@ function createPet(): void {
 function revealUtility(window: BrowserWindow): void {
   if (process.platform === 'darwin' && app.setActivationPolicy) app.setActivationPolicy('regular')
   applyAppIcon()
+  // macOS builds the Dock tile from the Electron bundle, then replaces it. Set the puppy again once that tile exists.
+  setTimeout(applyAppIcon, 0)
   window.show()
   window.focus()
   if (window === playgroundWindow && !playgroundLive) hidePetForPlayground()
@@ -290,9 +292,12 @@ function configureIntegration(): void {
 }
 
 function resourceFile(name: string): string | null {
+  const scriptDir = path.dirname(process.argv[1] ?? '')
   const candidates = [
     path.join(process.resourcesPath, 'resources', name),
+    path.join(process.resourcesPath, name),
     path.join(app.getAppPath(), 'resources', name),
+    path.join(scriptDir, '../../resources', name),
     path.join(process.cwd(), 'resources', name),
   ]
   return candidates.find((file) => fs.existsSync(file)) ?? null
@@ -308,8 +313,10 @@ function appIcon(): Electron.NativeImage | null {
 function applyAppIcon(): void {
   const image = appIcon()
   const file = resourceFile('icon.png')
-  if (image && process.platform === 'darwin' && app.dock) app.dock.setIcon(image)
-  if (file) app.setAboutPanelOptions({ applicationName: 'Pip', applicationVersion: app.getVersion(), iconPath: file })
+  if (process.platform === 'darwin' && app.dock && image) {
+    app.dock.setIcon(image)
+  }
+  if (file) app.setAboutPanelOptions({ applicationName: 'Pip', applicationVersion: app.getVersion(), copyright: 'Pip', iconPath: file })
 }
 
 function trayImage(): Electron.NativeImage {
@@ -884,6 +891,7 @@ if (gotLock) app.whenReady().then(() => {
   fs.mkdirSync(path.dirname(logPath), { recursive: true })
   applyAppIcon()
   if (process.platform === 'darwin' && app.setActivationPolicy) app.setActivationPolicy('accessory')
+  setTimeout(applyAppIcon, 0)
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'appMenu' },
     { role: 'editMenu' },

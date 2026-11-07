@@ -61,7 +61,7 @@ const stand = { sit: 0, lie: 0, tailLift: 24, mouth: 0.22 }
 export const SIT_STYLES = ['idle_sit', 'sit_lean', 'sit_sprawl', 'sit_side', 'sit_tall', 'sit_curl', 'sit_lazy', 'sit_cocked', 'sit_loaf', 'sit_proud'] as const
 export const LIE_STYLES = ['idle_lie', 'lie_flat', 'lie_side', 'lie_curl', 'lie_belly', 'lie_stretch', 'lie_chin', 'lie_sprawl', 'lie_tuck', 'lie_lazy'] as const
 export const SLEEP_STYLES = ['sleep_breathe', 'sleep_curl', 'sleep_sprawl', 'sleep_side', 'sleep_belly', 'sleep_tuck', 'sleep_loaf', 'snore', 'dream_paws', 'dream_run'] as const
-export { SAD_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './extra'
+export { CURSOR_STYLES, ENV_FLOOR_STYLES, ENV_LEDGE_STYLES, GONE_STYLES, QUIRK_STYLES, SAD_STYLES, STAND_STYLES, TROT_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './extra'
 
 function varied(id: string, category: ClipCategory, from: BodyState, end: BodyState, base: PartialPose, interruptibility = 0.9, priority = 1, locks: Clip['locks'] = []): Clip {
   return define({

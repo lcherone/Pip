@@ -40,6 +40,9 @@ Move a window into him and he may sidestep. Close the window supporting him and 
 | The same sit looking a little different a few seconds later | Sitting, lying, and sleeping each cycle through ten poses. A playback flavor also leans him, lifts or drops the tail, or crouches him slightly. |
 | He is on his paws and not going anywhere | A rested idle. Twenty-five standing poses, or a window reaction if there is something to watch. |
 | Low tail, drooped ears, chin on his paws | He has been left quietly for a while, or a window he was visiting just closed. Ten sad poses, then he carries on. |
+| A bouncy trot with his tail up | He is following or wandering at a trot, and that trot has eight cute versions. |
+| He begs, then jumps | A quirk. Playful mode does it in a quiet moment. Any mode does it when he is sitting under a window. |
+| A paw lifted at the glass, or a little crouch toward the pointer | He is playing at a window that came forward, or the pointer is nearby without being close enough to sniff. |
 | Sniffing the frame, tapping the glass, stretching up at a title bar | One of fifteen floor reactions to a window. Climbing still uses the climb, not one of these poses. |
 | Dangling a paw or leaning over a perch | One of ten ledge reactions, after the first look over the edge. |
 | A blink and an ear twitch while sitting | Additive animation layers keep a resting puppy alive. |

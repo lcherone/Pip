@@ -1,10 +1,11 @@
+import { windowRestDuration, windowVisitInterval } from './engagement'
 import { chooseAscentStyle, type AscentStyle } from './ascent'
 import { TRICK_IDS, isTrick, type TrickId } from './tricks'
 import { ACTIVITIES, learningBias, type LearningMemory } from './learning'
 import { asideFrom, coversPuppy, windowFocusPoint, type DeskEvent, type DesktopWindow, type DisplayInfo } from './desktop'
 import { chooseWindow, edgeOccluded, emptyEnvironment, noteVisit, rememberRest, restingLocations, windowAffordances, readWorld, routeToWindow, type EnvironmentMemory, type RouteStep, type WorldView } from './world'
 import { clamp, mulberry32 } from './math'
-import { getClip, LIE_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './animation/clips'
+import { CURSOR_STYLES, ENV_FLOOR_STYLES, ENV_LEDGE_STYLES, GONE_STYLES, getClip, LIE_STYLES, QUIRK_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, TROT_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './animation/clips'
 import type { Mood } from './animation/engine'
 import type { Gait, Posture } from './director'
 import type { Personality } from './settings'
@@ -100,9 +101,10 @@ export interface BehaviourOutput {
 
 export interface EnvironmentalGoal {
   ascentStyle?: AscentStyle
+  playCount?: number
   id: number
   kind: 'investigate' | 'rest' | 'recover'
-  phase: 'anticipate' | 'approach' | 'interact' | 'settle' | 'edge_walk' | 'rest' | 'recover'
+  phase: 'anticipate' | 'approach' | 'interact' | 'settle' | 'edge_walk' | 'play' | 'rest' | 'recover'
   status: 'active' | 'completed' | 'cancelled'
   windowId: string | null
   app: string
@@ -154,6 +156,8 @@ export class BehaviourEngine {
   age = 0
   private plan: Plan | null = null
   private asleep = false
+  private asleepSince = 0
+  private requestedSleep = false
   private token = 1
   private cooldowns = new Map<string, number>()
   private excitement = 0
@@ -218,7 +222,7 @@ export class BehaviourEngine {
       this.pendingSharedReply = shared.reply
       this.pendingSharedSource = shared.source
     }
-    if (input.typing?.active) this.typingQuietUntil = input.now + 4
+    if (input.typing?.active && input.typing.pace === 'busy') this.typingQuietUntil = input.now + 4
     if (this.routeWindowId && !input.windows.some(window => window.id === this.routeWindowId && window.onScreen)) {
       this.cancelGoal('the destination disappeared')
     }
@@ -252,6 +256,8 @@ export class BehaviourEngine {
 
     if (this.asleep) {
       if (this.shouldWake(input)) return this.output(this.wake(input, note), input)
+      if (!this.requestedSleep && input.mode === 'playful' && input.now - this.asleepSince >= 20
+        && this.needs.energy > 0.75 && this.needs.rest < 0.3) return this.output(this.wake(input, note, true), input)
       return this.output(this.make({
         action: 'sleep', reason: 'still asleep', posture: 'sleeping', gait: 'none', emote: this.styleOf(SLEEP_STYLES, 4),
         targetX: null, targetY: null, surfaceId: null, until: input.now + 30, phase: 'act',
@@ -345,7 +351,7 @@ export class BehaviourEngine {
           this.places = rememberRest(this.places, this.worldInput(input))
           return this.output(this.startSleep(input, 'settled in a familiar resting spot'), input)
         } else if (this.goal?.phase === 'edge_walk') {
-          return this.output(this.restAtWindow(input, note), input)
+          return this.output(this.canPlayAtWindow(input) ? this.playAtWindow(input, note) : this.restAtWindow(input, note), input)
         } else if (this.plan.action === 'zoomies') {
           this.route = []
           this.plan.phase = 'act'
@@ -387,7 +393,7 @@ export class BehaviourEngine {
   private driftNeeds(dt: number, input: BehaviourInput): void {
     const moving = this.plan?.gait && this.plan.gait !== 'none'
     this.needs.energy = clamp(this.needs.energy - dt * (moving ? 0.02 : 0.004) * (1.15 - this.personality.energy * 0.4), 0, 1)
-    if (!moving && (this.plan?.posture === 'sitting' || this.plan?.posture === 'lying' || this.asleep)) {
+    if (!moving && (this.plan?.posture === 'sitting' || this.plan?.posture === 'lying' || this.plan?.posture === 'ledge' || this.plan?.posture === 'resting_ledge' || this.asleep)) {
       this.needs.energy = clamp(this.needs.energy + dt * 0.012, 0, 1)
     }
     this.needs.rest = clamp(this.needs.rest + dt * (this.needs.energy < 0.4 ? 0.02 : -0.008) + (input.idleSeconds > 60 ? dt * 0.01 : 0), 0, 1)
@@ -418,19 +424,21 @@ export class BehaviourEngine {
     return input.events.some((event) => event.type === 'clicked' || event.type === 'petted' || event.type === 'active' || event.type === 'shared_text')
   }
 
-  private wake(input: BehaviourInput, note: string | null): Plan {
+  private wake(input: BehaviourInput, note: string | null, natural = false): Plan {
     this.asleep = false
     this.needs.rest = Math.max(0, this.needs.rest - 0.3)
     this.needs.energy = Math.min(1, this.needs.energy + 0.08)
     return this.make({
-      action: 'wake', reason: 'waking up', posture: 'lying', gait: 'none', emote: 'wake',
+      action: 'wake', reason: natural ? 'rested and ready to explore' : 'waking up', posture: 'lying', gait: 'none', emote: 'wake',
       targetX: null, targetY: null, surfaceId: null, until: input.now + 1.3, phase: 'act',
-      speech: input.mode === 'focus' ? null : 'Mmh?', fx: 'none', event: 'wake', source: 'user', note,
+      speech: natural || input.mode === 'focus' ? null : 'Mmh?', fx: 'none', event: 'wake', source: natural ? 'world' : 'user', note,
     }, input)
   }
 
-  private startSleep(input: BehaviourInput, reason: string): Plan {
+  private startSleep(input: BehaviourInput, reason: string, requested = false): Plan {
     this.asleep = true
+    this.asleepSince = input.now
+    this.requestedSleep = requested
     return this.make({
       action: 'sleep', reason, posture: 'sleeping', gait: 'none', emote: null,
       targetX: null, targetY: null, surfaceId: null, until: input.now + 60, phase: 'act',
@@ -444,6 +452,30 @@ export class BehaviourEngine {
 
   private sitStyle(): string {
     return this.styleOf(SIT_STYLES, 6)
+  }
+
+  private trotEmote(gait: Gait): string | null {
+    return gait === 'trot' ? this.styleOf(TROT_STYLES, 4) : null
+  }
+
+  /** A window just overhead, or a playful quiet moment, gets a beg that pops into a jump. */
+  private quirkPlan(choice: string, input: BehaviourInput, note: string | null): Plan | null {
+    if (choice === 'sleep' || choice === 'chase' || choice === 'follow' || choice === 'approach' || input.mode === 'focus' || input.mode === 'sleep' || input.surfaceId) return null
+    const playful = input.mode === 'playful' && this.needs.energy > 0.4 && Math.floor(this.age / 11) % 3 === 1
+    const overhead = input.windows.some((window) => window.onScreen
+      && window.bounds.y < input.y - 36
+      && window.bounds.y > input.y - 460
+      && input.x > window.bounds.x - 30
+      && input.x < window.bounds.x + window.bounds.w + 30)
+    const underWindow = overhead && Math.floor(this.age / 9) % 4 === 1
+    if (!playful && !underWindow) return null
+    return this.make({
+      action: 'quirk',
+      reason: underWindow ? 'begging at the window, then a little jump' : 'begging, then a little jump',
+      posture: 'sitting', gait: 'none', emote: this.styleOf(QUIRK_STYLES, 4),
+      targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: input.now + 2.2, phase: 'act',
+      speech: null, fx: 'none', event: null, source: null, note,
+    }, input)
   }
 
   private lieStyle(): string {
@@ -481,7 +513,7 @@ export class BehaviourEngine {
   }
 
   private applyForce(force: ForceRequest, input: BehaviourInput, note: string | null): Plan {
-    if (force.action === 'sleep') return this.startSleep(input, 'asked to sleep')
+    if (force.action === 'sleep') return this.startSleep(input, 'asked to sleep', true)
     if (force.action === 'wake') return this.wake(input, note)
     if (force.action === 'sit') {
       this.anchorX = input.x
@@ -657,7 +689,7 @@ export class BehaviourEngine {
       this.moodLock = 'sad'
       this.moodUntil = input.now + 8
       return this.make({
-        action: 'window_closed', reason: 'a window closed', posture: 'standing', gait: 'none', emote: 'window_closed',
+        action: 'window_closed', reason: 'a window closed', posture: 'standing', gait: 'none', emote: this.styleOf(GONE_STYLES, 5),
         targetX: null, targetY: input.floorY, surfaceId: null, until: input.now + 1, phase: 'act',
         speech: null, fx: 'none', event: 'window_closed', source: closed.source, note,
       }, input)
@@ -764,7 +796,7 @@ export class BehaviourEngine {
     const ended = input.events.find((event) => event.type === 'app_terminated')
     if (ended && !closed && input.mode !== 'focus' && this.ready('window', input.now, 2)) {
       return this.make({
-        action: 'shake_off', reason: `${ended.app} quit`, posture: 'standing', gait: 'none', emote: 'shake_off',
+        action: 'shake_off', reason: `${ended.app} quit`, posture: 'standing', gait: 'none', emote: this.styleOf(GONE_STYLES, 5),
         targetX: null, targetY: input.floorY, surfaceId: null, until: input.now + 1, phase: 'act',
         speech: null, fx: 'none', event: 'app_terminated', source: ended.source, note,
       }, input)
@@ -777,6 +809,31 @@ export class BehaviourEngine {
           action: 'sniff', reason: 'something is right in front of his nose', posture: 'standing', gait: 'none', emote: 'investigate_cursor',
           targetX: null, targetY: null, surfaceId: null, until: input.now + 1.2, phase: 'act',
           speech: null, fx: 'none', event: 'cursor', source: 'user', note,
+        }, input)
+      }
+      const along = Math.hypot(input.cursor.x - input.x, input.cursor.y - input.y)
+      if (along > 130 && along < 340 && input.cursor.speed > 40 && input.cursor.speed < 650 && this.ready('tease', input.now, 9)) {
+        return this.make({
+          action: 'tease', reason: 'the pointer is wandering nearby', posture: 'standing', gait: 'none', emote: this.styleOf(CURSOR_STYLES, 3),
+          targetX: null, targetY: null, surfaceId: null, until: input.now + 1.3, phase: 'act',
+          speech: null, fx: 'none', event: 'cursor', source: 'user', note,
+        }, input)
+      }
+    }
+    const focus = input.events.find((event) => event.type === 'window_focused' || event.type === 'window_visible' || event.type === 'window_unfocused' || event.type === 'window_covered')
+    if (focus && !moving && !duringIntro && input.mode !== 'focus' && input.mode !== 'sleep' && this.ready('desk_focus', input.now, 6)) {
+      const window = this.windowForEvent(input, focus)
+      const near = !window || Math.hypot(window.bounds.x + window.bounds.w / 2 - input.x, window.bounds.y - input.y) < 900
+      if (near) {
+        const coming = focus.type === 'window_focused' || focus.type === 'window_visible'
+        const onLedge = Boolean(input.surfaceId)
+        return this.make({
+          action: coming ? 'attend' : 'cover_notice',
+          reason: coming ? 'a window came forward' : 'a window slipped away',
+          posture: onLedge ? 'ledge' : 'standing', gait: 'none',
+          emote: onLedge ? this.styleOf(ENV_LEDGE_STYLES, 4) : this.styleOf(coming ? ENV_FLOOR_STYLES : GONE_STYLES, 4),
+          targetX: null, targetY: null, surfaceId: onLedge ? input.surfaceId ?? null : null, until: input.now + 1.4, phase: 'act',
+          speech: null, fx: 'none', event: focus.type, source: focus.source, note,
         }, input)
       }
     }
@@ -811,6 +868,8 @@ export class BehaviourEngine {
   }
 
   private decide(input: BehaviourInput, note: string | null): Plan {
+    const exploration = this.seekWindowPlay(input, note)
+    if (exploration) return exploration
     if (this.age > 8 && input.mode === 'playful' && this.personality.playfulness > 0.55 && this.canTrick(input) && input.now >= this.nextTrickAt) {
       this.nextTrickAt = input.now + 32 + this.rng() * 36
       if (this.rng() < this.personality.playfulness * 0.65) return this.performTrick(this.chooseTrick(), input, 'feeling playful and showing off', null)
@@ -848,12 +907,15 @@ export class BehaviourEngine {
     }
     if ((choice === 'follow' || input.now < this.followUntil) && input.cursor && input.followCursor && input.mode !== 'focus' && input.mode !== 'sleep') {
       const gap = this.personality.independence > 0.7 ? 120 : 70
+      const gait: Gait = this.needs.energy > 0.55 ? 'trot' : 'walk'
       return this.make({
-        action: 'follow', reason: 'tagging along', posture: 'standing', gait: this.needs.energy > 0.55 ? 'trot' : 'walk', emote: null,
+        action: 'follow', reason: gait === 'trot' ? 'trotting along' : 'tagging along', posture: 'standing', gait, emote: this.trotEmote(gait),
         targetX: clamp(input.cursor.x - gap, input.minX, input.maxX), targetY: input.floorY, surfaceId: null,
         until: input.now + 1.6, phase: 'move', speech: null, fx: 'none', event: null, source: null, note,
       }, input)
     }
+    const quirk = this.quirkPlan(choice, input, note)
+    if (quirk) return quirk
     if (choice === 'wander' && input.followWindows && input.now >= this.nextWindowVisit && input.now >= this.typingQuietUntil && this.rng() < 0.5) {
       const visit = chooseWindow(this.worldInput(input), this.rng, this.recentWindowIds(input.now))
       if (visit) return this.beginVisit(visit.window, visit.steps, input, note, 'spontaneous_visit', 'world')
@@ -863,8 +925,8 @@ export class BehaviourEngine {
       const target = clamp(input.x + (this.rng() * 2 - 1) * spread, input.minX, input.maxX)
       const gait: Gait = this.needs.energy > 0.75 && input.mode === 'playful' ? 'trot' : 'walk'
       return this.make({
-        action: 'wander', reason: input.now < this.exploreUntil ? 'exploring' : 'going for a wander',
-        posture: 'standing', gait, emote: null, targetX: target, targetY: input.floorY, surfaceId: null,
+        action: 'wander', reason: gait === 'trot' ? 'trotting off to look around' : input.now < this.exploreUntil ? 'exploring' : 'going for a wander',
+        posture: 'standing', gait, emote: this.trotEmote(gait), targetX: target, targetY: input.floorY, surfaceId: null,
         until: input.now + 8, phase: 'move', speech: null, fx: 'paws', event: null, source: null, note,
       }, input)
     }
@@ -876,7 +938,7 @@ export class BehaviourEngine {
           ? [...SAD_STYLES]
           : input.windows.length
             ? [...STAND_STYLES, ...WINDOW_FLOOR_STYLES]
-            : [...STAND_STYLES, 'head_tilt', 'paw_adjust', 'curious', 'sniff_ground', 'lick_paw', 'sneeze', 'beg', 'dig', 'tail_chase', 'paw_wave', 'knead', 'doze', 'lick_nose', 'wiggle', 'pounce', 'stretch_side', 'pant']
+            : [...STAND_STYLES, ...QUIRK_STYLES, 'head_tilt', 'paw_adjust', 'curious', 'sniff_ground', 'lick_paw', 'sneeze', 'dig', 'tail_chase', 'paw_wave', 'knead', 'doze', 'lick_nose', 'wiggle', 'pounce', 'stretch_side', 'pant']
       const emote = emotes[Math.floor(this.rng() * emotes.length)] ?? 'head_tilt'
       const clipForEmote = getClip(emote)
       const standing = Boolean(clipForEmote && clipForEmote.from.includes('standing') && !clipForEmote.from.includes('sitting'))
@@ -964,7 +1026,7 @@ export class BehaviourEngine {
   }
 
   private windowForEvent(input: BehaviourInput, event: DeskEvent): DesktopWindow | undefined {
-    if (event.type === 'window_opened' || event.type === 'window_moved' || event.type === 'window_resized') {
+    if (event.type === 'window_opened' || event.type === 'window_moved' || event.type === 'window_resized' || event.type === 'window_focused' || event.type === 'window_unfocused' || event.type === 'window_covered' || event.type === 'window_visible') {
       return input.windows.find((window) => window.id === event.windowId)
     }
     if (event.type === 'app_launched' || event.type === 'app_activated' || event.type === 'app_terminated') {
@@ -989,11 +1051,66 @@ export class BehaviourEngine {
     return new Set(this.recentWindows.keys())
   }
 
+  private canPlayAtWindow(input: BehaviourInput): boolean {
+    return input.mode === 'playful' && input.followWindows && !input.airborne && !input.dragging && !input.paused
+      && input.now >= this.stayUntil && input.now >= this.typingQuietUntil && this.needs.energy > 0.35 && this.needs.rest < 0.65
+  }
+
+  private seekWindowPlay(input: BehaviourInput, note: string | null): Plan | null {
+    if (!this.canPlayAtWindow(input) || input.now < this.nextWindowVisit || this.goal?.status === 'active') return null
+    const recent = this.recentWindowIds(input.now)
+    const visit = chooseWindow(this.worldInput(input), this.rng, recent)
+    if (visit) return this.beginVisit(visit.window, visit.steps, input, note, 'spontaneous_visit', 'world')
+    const perch = input.windows.find(window => window.id === input.surfaceId && window.onScreen && !recent.has(window.id))
+    if (perch && !edgeOccluded(input.windows, input.windows.indexOf(perch))) {
+      this.recentWindows.set(perch.id, input.now + this.visitInterval(input))
+      this.goal = { id: this.token + 1, kind: 'investigate', phase: 'settle', status: 'active', windowId: perch.id,
+        app: perch.app, reason: 'finding another game on this window', target: { x: input.x, y: input.y }, startedAt: input.now, until: input.now + 0.6 }
+      return this.make({ action: 'play_window', reason: this.goal.reason, posture: 'ledge', gait: 'none', emote: 'notice_app',
+        targetX: null, targetY: null, surfaceId: perch.id, until: this.goal.until, phase: 'act', speech: null, fx: 'none', event: 'window_game', source: 'world', note }, input)
+    }
+    this.nextWindowVisit = input.now + (input.mode === 'playful' ? 3 : 8)
+    return null
+  }
+
+  private playAtWindow(input: BehaviourInput, note: string | null): Plan {
+    const goal = this.goal!
+    const count = goal.playCount ?? 0
+    const clips = input.surfaceId ? ENV_LEDGE_STYLES : ENV_FLOOR_STYLES
+    const emote = clips[(Math.floor(this.rng() * clips.length) + count) % clips.length]!
+    const window = input.windows.find(item => item.id === goal.windowId)
+    goal.target = input.surfaceId ? { x: input.x + 45, y: input.y + 35 }
+      : { x: input.x, y: window ? window.bounds.y + 40 : input.y - 80 }
+    goal.playCount = count + 1
+    goal.phase = 'play'
+    goal.until = input.now + 2.5 + this.rng() * 2
+    return this.make({ action: 'play_window', reason: input.surfaceId ? 'playing and peeking over the window edge' : 'sniffing and pawing at the window frame',
+      posture: input.surfaceId ? 'ledge' : 'standing', gait: 'none', emote, targetX: null, targetY: null,
+      surfaceId: input.surfaceId ?? null, until: goal.until, phase: 'act', speech: null, fx: 'none', event: 'window_game', source: 'world', note }, input)
+  }
+
+  private patrolWindow(input: BehaviourInput, note: string | null): Plan | null {
+    const goal = this.goal!
+    const window = input.windows.find(item => item.id === goal.windowId && item.onScreen)
+    if (!window) return null
+    const left = Math.max(input.minX, window.bounds.x + 48)
+    const right = Math.min(input.maxX, window.bounds.x + window.bounds.w - 48)
+    if (right - left < 150) return null
+    const opposite = input.x < (left + right) / 2 ? right : left
+    const x = clamp(opposite, input.x - 160, input.x + 160)
+    if (Math.abs(x - input.x) < 45) return null
+    if (input.surfaceId && [0.25, 0.5, 0.75, 1].some(t => edgeOccluded(input.windows, input.windows.indexOf(window), input.x + (x - input.x) * t))) return null
+    goal.phase = 'edge_walk'
+    goal.target = { x, y: input.y }
+    goal.until = input.now + Math.abs(x - input.x) / 60 + 5
+    return this.make({ action: 'play_window', reason: input.surfaceId ? 'patrolling the window ledge' : 'padding along the window frame',
+      posture: input.surfaceId ? 'ledge' : 'standing', gait: 'walk', emote: null, targetX: x, targetY: input.y,
+      surfaceId: input.surfaceId ?? null, until: goal.until, phase: 'move', speech: null, fx: 'none', event: 'window_patrol', source: 'world', note }, input)
+  }
+
   private visitInterval(input: BehaviourInput): number {
-    const ranges = { low: [35, 70], normal: [18, 40], high: [8, 20] } as const
-    const [minimum, maximum] = ranges[input.windowInteractionFrequency ?? 'normal']
-    const mode = input.mode === 'playful' ? 0.75 : 1.2
-    return (minimum + this.rng() * (maximum - minimum)) * mode
+    const preference = input.memoryEnabled && input.learningEnabled ? input.learning?.approach?.score ?? 0 : 0
+    return windowVisitInterval(input.mode, input.windowInteractionFrequency ?? 'normal', this.rng()) * (1 - preference * 0.25)
   }
 
   private beginVisit(window: DesktopWindow, steps: RouteStep[], input: BehaviourInput, note: string | null, event: string, source: string): Plan {
@@ -1002,7 +1119,7 @@ export class BehaviourEngine {
     this.routeWindowId = window.id
     const interval = this.visitInterval(input)
     this.nextWindowVisit = input.now + interval
-    this.recentWindows.set(window.id, input.now + Math.max(25, interval))
+    this.recentWindows.set(window.id, input.now + Math.max(input.windowInteractionFrequency === 'high' ? 12 : 18, interval))
     if (this.recentWindows.size > 40) this.recentWindows.delete(this.recentWindows.keys().next().value!)
     this.visitStyle = (['sniff', 'watch', 'paw'] as const)[Math.floor(this.rng() * 3)] ?? 'sniff'
     const corner = windowAffordances(this.worldInput(input)).find(item => item.windowId === window.id && item.kind === 'sniff_corner' && item.feasible)
@@ -1025,7 +1142,7 @@ export class BehaviourEngine {
       this.goal.reason = reason
       this.goalHistory = [...this.goalHistory, { ...this.goal }].slice(-12)
     }
-    const environmentalPlan = this.plan && ['approach', 'investigate', 'rest_surface', 'walk_edge', 'find_rest'].includes(this.plan.action)
+    const environmentalPlan = this.plan && ['approach', 'investigate', 'rest_surface', 'walk_edge', 'play_window', 'find_rest'].includes(this.plan.action)
     this.route = []
     this.routeWindowId = null
     if (environmentalPlan) this.plan = null
@@ -1081,6 +1198,7 @@ export class BehaviourEngine {
         targetX: step.x, targetY: step.y, surfaceId: step.surfaceId, until: goal.until, phase: 'move', speech: null, fx: 'none', event: 'goal_continued', source: 'world', note }, input)
     }
     if (goal.phase === 'settle') {
+      if (this.canPlayAtWindow(input)) return this.playAtWindow(input, note)
       const edgeWalk = windowAffordances(this.worldInput(input)).find(item => item.windowId === goal.windowId && item.kind === 'walk_edge' && item.feasible)
       if (input.surfaceId && edgeWalk && this.personality.playfulness > 0.65 && this.rng() < 0.25) {
         goal.phase = 'edge_walk'
@@ -1089,6 +1207,10 @@ export class BehaviourEngine {
           targetX: edgeWalk.target.x, targetY: edgeWalk.target.y, surfaceId: input.surfaceId, until: goal.until, phase: 'move', speech: null, fx: 'none', event: 'edge_reached', source: 'world', note }, input)
       }
       return this.restAtWindow(input, note)
+    }
+    if (goal.phase === 'play') {
+      const patrol = (goal.playCount ?? 0) < 2 && this.canPlayAtWindow(input) ? this.patrolWindow(input, note) : null
+      return patrol ?? this.restAtWindow(input, note)
     }
     if (goal.phase === 'rest') {
       goal.status = 'completed'
@@ -1116,12 +1238,13 @@ export class BehaviourEngine {
   private restAtWindow(input: BehaviourInput, note: string | null): Plan {
     const goal = this.goal!
     const stableRest = windowAffordances(this.worldInput(input)).some(item => item.windowId === goal.windowId && item.kind === 'rest' && item.feasible)
-    const duration = input.surfaceId ? 45 + this.rng() * 105 : 12 + this.rng() * 30
+    const duration = windowRestDuration(input.mode, input.windowInteractionFrequency ?? 'normal', Boolean(input.surfaceId),
+      this.needs.energy < 0.35 || this.needs.rest > 0.65, Boolean(input.typing?.active && input.typing.pace === 'busy'), this.rng())
     goal.kind = 'rest'
     goal.phase = 'rest'
-    goal.until = input.now + duration * (input.mode === 'playful' ? 0.7 : 1)
+    goal.until = input.now + duration
     this.nextWindowVisit = goal.until
-    this.nextMicroAt = input.now + 4 + this.rng() * 5
+    this.nextMicroAt = input.now + (input.mode === 'playful' ? 2 + this.rng() * 3 : 4 + this.rng() * 5)
     this.route = []
     this.places = rememberRest(this.places, this.worldInput(input))
     let posture: Posture = input.surfaceId ? 'ledge' : 'sitting'
@@ -1134,7 +1257,7 @@ export class BehaviourEngine {
   private microBehaviour(input: BehaviourInput): void {
     if (!this.plan || input.mode === 'sleep' || input.mode === 'focus') return
     const clips = input.surfaceId
-      ? WINDOW_LEDGE_STYLES
+      ? ENV_LEDGE_STYLES
       : this.plan.posture === 'standing'
         ? (input.windows.length ? WINDOW_FLOOR_STYLES : STAND_STYLES)
         : this.mood === 'sad'
@@ -1142,12 +1265,13 @@ export class BehaviourEngine {
           : ['doze', 'lick_nose', 'knead', 'ear_twitch_left', 'nose_twitch'] as readonly string[]
     this.plan.emote = clips[Math.floor(this.rng() * clips.length)] ?? 'slow_blink'
     this.plan.token = ++this.token
-    this.nextMicroAt = input.now + 6 + this.rng() * 10
+    this.nextMicroAt = input.now + (input.mode === 'playful' ? 3 + this.rng() * 4 : 6 + this.rng() * 10)
   }
 
   private reactToActivity(input: BehaviourInput, note: string | null): Plan | null {
     if (input.airborne || this.plan?.gait === 'climb' || input.mode === 'sleep') return null
     const typing = input.typing
+    if (typing?.active && typing.pace !== 'busy' && this.goal?.status === 'active') return null
     if (typing?.active && typing.duration >= 1.2 && this.ready('typing', input.now, 18)) {
       this.cancelGoal('keeping company during typing')
       const window = input.windows.find(item => item.focused || item.app === typing.app)
@@ -1163,7 +1287,7 @@ export class BehaviourEngine {
       return this.make({
         action: 'quiet_company', reason: `listening to your typing in ${typing.app}`, posture: input.surfaceId ? 'ledge' : 'sitting', gait: 'none',
         emote: input.surfaceId ? (typing.pace === 'busy' ? 'look_over_edge' : 'settle_paws') : (typing.pace === 'busy' ? 'watch_progress' : 'listen'),
-        targetX: null, targetY: null, surfaceId: input.surfaceId ?? null, until: input.now + 3,
+        targetX: null, targetY: null, surfaceId: input.surfaceId ?? null, until: input.now + (typing.pace === 'busy' ? 3 : 1.1),
         phase: 'act', speech: null, fx: 'none', event: 'typing_started', source: typing.source ?? 'os', note,
       }, input)
     }
@@ -1201,8 +1325,7 @@ export class BehaviourEngine {
     }
     if (id === 'approach') {
       if (!input.followWindows || input.windows.length === 0 || input.now < this.stayUntil || input.now < this.nextWindowVisit || input.now < this.typingQuietUntil || input.mode === 'focus') return -1
-      const familiar = this.places.visits.reduce((sum, visit) => sum + visit.count, 0)
-      return p.curiosity * 1.15 + this.needs.curiosity * 0.8 + (windowEvent ? 0.9 : 0) + (input.mode === 'playful' ? 0.15 : 0) - Math.min(0.55, familiar * 0.07)
+      return p.curiosity * 1.15 + this.needs.curiosity * 0.8 + (windowEvent ? 0.9 : 0) + (input.mode === 'playful' ? 0.15 : 0)
     }
     if (id === 'wander') {
       if (input.now < this.stayUntil) return -1

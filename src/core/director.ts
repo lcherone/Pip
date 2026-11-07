@@ -1,6 +1,6 @@
 import type { AscentFrame } from './ascent'
 import type { AnimationEngine } from './animation/engine'
-import { getClip } from './animation/clips'
+import { getClip, TROT_STYLES } from './animation/clips'
 import type { MotionKind, MoveKind } from './movement'
 
 export type Posture = 'standing' | 'sitting' | 'lying' | 'sleeping' | 'held' | 'ledge' | 'resting_ledge'
@@ -35,7 +35,9 @@ export function resolveClip(performance: Performance): string {
   if (performance.motion === 'skid') return 'skid_stop'
   if (performance.motion === 'back') return 'back_away'
   if (performance.motion === 'run') return performance.emote === 'chase_cursor' ? 'chase_cursor' : 'run'
-  if (performance.motion === 'trot') return 'trot'
+  if (performance.motion === 'trot') {
+    return performance.emote && (TROT_STYLES as readonly string[]).includes(performance.emote) ? performance.emote : 'trot'
+  }
   const travelEmote = performance.emote === 'approach_window' || performance.emote === 'sidestep'
   if (performance.motion === 'walk') {
     if (performance.posture === 'ledge' || performance.posture === 'resting_ledge') return 'walk_ledge'
@@ -69,7 +71,8 @@ export class PerformanceDirector {
     if (performance.airborne) return performance.gait
     if (!performance.justLanded && performance.motion !== 'idle' && performance.motion !== 'skid') return performance.gait
     if (!this.engine.readyForMovement) {
-      this.sync({ ...performance, posture: 'standing', gait: 'none', emote: null, motion: 'idle', force: false, justLanded: false })
+      const posture = performance.posture === 'ledge' || performance.posture === 'resting_ledge' ? 'ledge' : 'standing'
+      this.sync({ ...performance, posture, gait: 'none', emote: null, motion: 'idle', force: false, justLanded: false })
       return 'idle'
     }
     return performance.gait

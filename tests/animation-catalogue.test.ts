@@ -152,6 +152,9 @@ describe('animation coordination regressions', () => {
     expect(resolveClip({ ...performance, gait: 'walk', motion: 'idle', emote: 'approach_window' })).toBe('idle_stand')
     expect(resolveClip({ ...performance, motion: 'walk', emote: 'sidestep' })).toBe('sidestep')
     expect(resolveClip({ ...performance, motion: 'walk', emote: 'curious' })).toBe('walk_right')
+    expect(resolveClip({ ...performance, motion: 'trot', emote: 'trot_prance' })).toBe('trot_prance')
+    expect(resolveClip({ ...performance, motion: 'trot', emote: 'curious' })).toBe('trot')
+    expect(resolveClip({ ...performance, motion: 'trot', emote: null })).toBe('trot')
   })
 
   it('stands before translation, then accelerates and brakes without a gait feedback loop', () => {

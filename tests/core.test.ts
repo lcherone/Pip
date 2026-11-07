@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listClips, LIE_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from '../src/core/animation/clips'
+import { CURSOR_STYLES, ENV_FLOOR_STYLES, listClips, LIE_STYLES, QUIRK_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, TROT_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from '../src/core/animation/clips'
 import { AnimationEngine } from '../src/core/animation/engine'
 import { BehaviourEngine, introAt, type BehaviourInput } from '../src/core/behaviour'
 import { summarizeApproval, CodexSession, type CodexTransport } from '../src/core/codex'
@@ -183,6 +183,34 @@ describe('behaviour', () => {
     }
     expect(stands.size).toBeGreaterThan(3)
     for (const emote of stands) expect(STAND_STYLES).toContain(emote)
+
+    expect(TROT_STYLES).toHaveLength(8)
+    expect(QUIRK_STYLES).toContain('beg_jump')
+    const playful = new BehaviourEngine(undefined, 2)
+    for (let i = 0; i < 12; i++) playful.update(input({ now: i + 1, dt: 1, mode: 'playful', followWindows: false }))
+    const jump = playful.update(input({ now: 40, dt: 1, mode: 'playful', followWindows: false, windows: [windowA], x: 300, y: 500 }))
+    expect(jump.action).toBe('quirk')
+    expect(QUIRK_STYLES).toContain(jump.emote)
+  })
+
+  it('reaches when a window comes forward and teases a pointer that is nearby but not under his nose', () => {
+    const attend = new BehaviourEngine(undefined, 2).update(input({
+      now: 8,
+      x: 300,
+      y: 500,
+      windows: [windowA],
+      events: [{ type: 'window_focused', windowId: windowA.id, app: windowA.app, source: 'sim' }],
+    }))
+    expect(attend.action).toBe('attend')
+    expect(ENV_FLOOR_STYLES).toContain(attend.emote)
+    const tease = new BehaviourEngine(undefined, 2).update(input({
+      now: 8,
+      x: 120,
+      y: 500,
+      cursor: { x: 300, y: 500, speed: 120 },
+    }))
+    expect(tease.action).toBe('tease')
+    expect(CURSOR_STYLES).toContain(tease.emote)
   })
 
   it('does not chase in focus mode', () => {

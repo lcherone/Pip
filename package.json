@@ -45,7 +45,11 @@
       "target": [
         "dir"
       ],
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.png",
+      "extendInfo": {
+        "CFBundleDisplayName": "Pip",
+        "CFBundleName": "Pip"
+      }
     }
   },
   "devDependencies": {

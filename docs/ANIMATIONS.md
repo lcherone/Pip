@@ -35,6 +35,8 @@ The behaviour engine does not pick a random clip from the whole catalogue. Long 
 | Stand | 25 | A rested idle, in place of sitting, about one stretch in three | Every 4 seconds |
 | Window, floor | 15 | Noticing a window, arriving at the glass, standing watch, and resting beside a window | Every 3–4 seconds |
 | Window, ledge | 10 | Resting on a perch, and the small motions he makes while he stays there | Every 5 seconds |
+| Trot | 8 | Following or wandering once he is actually trotting | Every 4 seconds |
+| Quirks | 5 | A playful quiet moment, or sitting under a window | Every 4 seconds |
 
 Sadness does not replace sleep, a chase, or a window expedition. It replaces an ordinary sit when idle time is past 50 seconds, his attention need is low, and he is not already exhausted. Closing a window still plays `window_closed` first, then holds a sad mood for about eight seconds.
 
@@ -63,6 +65,34 @@ Sleep clips keep the eyes closed. Ordinary cursor movement and window events do 
 **Sad:** sad, sad_sigh, sad_paw, sad_aside, sad_curl, sad_whimper, sad_chin, sad_shuffle, sad_ear, sad_wait
 
 These are seated poses: a sigh, a look at one paw, a turn away, a curl, a whimper, a chin on the paws, a shuffle, one ear trying to perk, and a small hopeful wait. The tail stays low. They are moods, not a request for the user to do anything.
+
+## Trots and quirks
+
+**Trot:** trot, trot_prance, trot_tiptoe, trot_wiggle, trot_proud, trot_happy, trot_peek, trot_bunny
+
+The plain trot is the default whenever movement is at a trot and nothing else was asked for. Following you, or wandering while playful and energetic, picks one of the eight. A prance keeps the tail high and the ears up. A tiptoe is smaller and careful. A wiggle, a proud chest, a happy open mouth, a sideways peek, and a bunny bounce are the others. The walk and the run stay themselves. The cute trot only replaces the clip once his speed is actually a trot, so a climb is never turned into a prance.
+
+**Quirks:** beg, beg_jump, beg_bounce, beg_please, beg_wiggle
+
+`beg_jump` is the one to look for: he sits up with a paw raised, then pops off the floor and lands back into the beg. `beg_bounce` is a string of smaller hopeful hops. `beg_please` waves one paw. `beg_wiggle` wiggles without getting up.
+
+He does this on his own in Playful mode during a quiet stretch, and in any mode but Focus when he is on the floor under a window. An expedition, a chase, and a follow still come first. **More of that** treats the quirk as an idle expression.
+
+## Reaching into the room
+
+**At a window, from the floor:** env_reach_up, env_reach_left, env_reach_right, env_boop, env_lean_in, env_hop_at, env_chin_up, env_sneak
+
+**From a perch:** env_bat_down, env_nose_over, env_wave_down, env_chest_sill, env_peek_side, env_happy_perch
+
+These are the poses he uses while he is playing at a window he has already reached. Paws use the reach channels, so a boop and a bat actually lift a paw toward the glass instead of only tilting his head. A focused or newly visible window gets one of the floor reaches. A window that loses focus or gets covered gets a goodbye pose instead. Neither of those replaces a climb, a dodge, or the pinned reactions for a move, a resize, or a fullscreen window.
+
+**Pointer, when it is nearby but not under his nose:** tease_crouch, tease_paw, tease_hop, tease_tilt, tease_ready
+
+A pointer that is almost touching him still gets the sniff. A fast one is still a chase. The band between those is a tease: a crouch, a paw, a hop, a tilt, or a ready stance.
+
+**When a window or an app goes away:** bye_look, bye_paw, bye_sniff, bye_tilt, bye_hope
+
+Closing a window and an app quitting still use their own actions. The pose rotates through this goodbye set.
 
 ## Standing
 
