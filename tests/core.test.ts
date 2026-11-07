@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listClips, LIE_STYLES, SIT_STYLES, SLEEP_STYLES } from '../src/core/animation/clips'
+import { listClips, LIE_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from '../src/core/animation/clips'
 import { AnimationEngine } from '../src/core/animation/engine'
 import { BehaviourEngine, introAt, type BehaviourInput } from '../src/core/behaviour'
 import { summarizeApproval, CodexSession, type CodexTransport } from '../src/core/codex'
@@ -156,6 +156,33 @@ describe('behaviour', () => {
     const sits = new Set<string | null>()
     for (let i = 0; i < 130; i++) sits.add(brain.update(input({ now: i + 1, dt: 1, force: { action: 'sit' } })).emote)
     expect(sits).toEqual(new Set(SIT_STYLES))
+  })
+
+  it('uses many sad poses, standing poses, and window reactions', () => {
+    expect(SAD_STYLES).toHaveLength(10)
+    expect(STAND_STYLES).toHaveLength(25)
+    expect(WINDOW_FLOOR_STYLES.length + WINDOW_LEDGE_STYLES.length).toBe(25)
+    for (const id of [...SAD_STYLES, ...STAND_STYLES, ...WINDOW_FLOOR_STYLES, ...WINDOW_LEDGE_STYLES]) {
+      expect(listClips().some((clip) => clip.id === id), id).toBe(true)
+    }
+    const lonely = new BehaviourEngine(undefined, 4)
+    lonely.setPersonality(effectivePersonality({
+      curiosity: 0.4, playfulness: 0.3, energy: 0.6, confidence: 0.4, sociability: 0.4,
+      attentionSeeking: 0.3, sleepiness: 0, excitability: 0.3, independence: 0.4,
+    }, 'chill'))
+    lonely.needs = { energy: 0.8, attention: 0.1, curiosity: 0.2, rest: 0.05, stimulation: 0.2 }
+    const sad = lonely.update(input({ now: 20, dt: 0.2, idleSeconds: 55 }))
+    expect(sad.action).toBe('sad')
+    expect(SAD_STYLES).toContain(sad.emote)
+
+    const brain = new BehaviourEngine(undefined, 4)
+    const stands = new Set<string | null>()
+    for (let i = 0; i < 80; i++) {
+      const out = brain.update(input({ now: i + 1, dt: 1 }))
+      if (out.action === 'stand') stands.add(out.emote)
+    }
+    expect(stands.size).toBeGreaterThan(3)
+    for (const emote of stands) expect(STAND_STYLES).toContain(emote)
   })
 
   it('does not chase in focus mode', () => {

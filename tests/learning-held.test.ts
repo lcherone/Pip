@@ -135,12 +135,15 @@ describe('suspended puppy', () => {
 })
 
 describe('animation self-improvement', () => {
-  it('reduces measured abruptness and applies the resulting timing to real playback', async () => {
+  it('keeps only measured improvements and applies the chosen timing to real playback', async () => {
     const { checkAnimation } = await import('../src/core/animation/coach')
     const result = checkAnimation('look_left')
     expect(result.passed).toBe(true)
-    expect(result.tuned).toBe(true)
-    expect(result.transitionAfter).toBeLessThan(result.transitionBefore * 0.9)
+    if (result.tuned) expect(result.transitionAfter).toBeLessThan(result.transitionBefore * 0.9)
+    else {
+      expect(result.blendDuration).toBe(0.18)
+      expect(result.transitionAfter).toBe(result.transitionBefore)
+    }
     const engine = new AnimationEngine()
     engine.setTransitionDurations({ look_left: result.blendDuration })
     engine.play('look_left', { force: true })

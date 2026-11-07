@@ -443,7 +443,7 @@ function frameTick(now: number): void {
     })
     const performanceState = {
       posture: output.posture, gait: output.gait, emote: output.emote, facing: movement.facing,
-      motion: movement.motion, force: output.force, token: output.token,
+      ascent: movement.ascent, motion: movement.motion, force: output.force, token: output.token,
       airborne: movement.airborne, justLanded: movement.justLanded,
     }
     movement.update(paused ? 0 : dt * speed, {
@@ -451,10 +451,11 @@ function frameTick(now: number): void {
       targetX: output.targetX ?? undefined,
       targetY: output.targetY ?? floor.floorY,
       surfaceId: output.surfaceId,
+      ascentStyle: output.ascentStyle,
     }, { floorY: floor.floorY, minX: floor.minX, maxX: floor.maxX, windows, displays })
     clipName = director.sync({
       ...performanceState, facing: movement.facing,
-      motion: movement.motion, force: output.force, token: output.token, airborne: movement.airborne, justLanded: movement.justLanded,
+      ascent: movement.ascent, motion: movement.motion, force: output.force, token: output.token, airborne: movement.airborne, justLanded: movement.justLanded,
     })
     lastLook = output.look
     lastHeadLook = output.headLook
@@ -469,6 +470,7 @@ function frameTick(now: number): void {
   }
   const animated = engine.update(paused ? 0 : dt, {
     phase: movement.phase,
+    ascent: movement.ascent,
     time: now / 1000,
     look: mode === 'behaviour' ? lastLook : null,
     headLook: mode === 'behaviour' ? lastHeadLook : null,
@@ -533,7 +535,7 @@ const api = {
   list: () => clips.map((clip) => clip.id),
   inspect: () => ({
     mode, paused, previewId, previewFacing, cycling, cycleIndex,
-    world: lastWorld, movement: { x: movement.x, y: movement.y, surfaceId: movement.surfaceId, airborne: movement.airborne, motion: movement.motion }, scenario, source, simMode,
+    world: lastWorld, movement: { x: movement.x, y: movement.y, surfaceId: movement.surfaceId, airborne: movement.airborne, motion: movement.motion, ascent: movement.ascent }, scenario, source, simMode,
     results: Object.fromEntries(cycleResults),
     ...engine.update(0),
   }),

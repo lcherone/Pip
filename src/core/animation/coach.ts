@@ -61,7 +61,7 @@ export function checkAnimation(id: string): AnimationCheck {
   const baseline = trial(id, 0.18)
   let best = baseline
   let duration = 0.18
-  const physicalTiming = clip.markers?.some((marker) => ['takeoff', 'land', 'impact'].includes(marker.name))
+  const physicalTiming = id.startsWith('climb_') || id === 'window_ready' || id === 'jump_paws_up' || clip.markers?.some((marker) => ['takeoff', 'land', 'impact'].includes(marker.name))
   // Physical takeoff/impact timing and direct pickup are never retimed by the coach.
   if (baseline.passed && baseline.peak > 0.35 && clip.blend === 'base' && id !== 'held' && !isTrick(id) && !physicalTiming) {
     for (const candidate of [0.26, 0.36, 0.48]) {

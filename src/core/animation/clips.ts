@@ -1,3 +1,4 @@
+import { EXTRA_CLIPS } from './extra'
 import { bump, clamp, doubleBump, lerp, smoothstep } from '../math'
 import { poseFrom, type Pose } from '../pose'
 import type { BodyState } from '../pose'
@@ -60,6 +61,7 @@ const stand = { sit: 0, lie: 0, tailLift: 24, mouth: 0.22 }
 export const SIT_STYLES = ['idle_sit', 'sit_lean', 'sit_sprawl', 'sit_side', 'sit_tall', 'sit_curl', 'sit_lazy', 'sit_cocked', 'sit_loaf', 'sit_proud'] as const
 export const LIE_STYLES = ['idle_lie', 'lie_flat', 'lie_side', 'lie_curl', 'lie_belly', 'lie_stretch', 'lie_chin', 'lie_sprawl', 'lie_tuck', 'lie_lazy'] as const
 export const SLEEP_STYLES = ['sleep_breathe', 'sleep_curl', 'sleep_sprawl', 'sleep_side', 'sleep_belly', 'sleep_tuck', 'sleep_loaf', 'snore', 'dream_paws', 'dream_run'] as const
+export { SAD_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './extra'
 
 function varied(id: string, category: ClipCategory, from: BodyState, end: BodyState, base: PartialPose, interruptibility = 0.9, priority = 1, locks: Clip['locks'] = []): Clip {
   return define({
@@ -499,6 +501,66 @@ const CLIPS: Clip[] = [
     },
   }),
   define({
+    id: 'window_ready', category: 'movement', duration: 0.3, loop: true, from: ['standing'], end: 'standing', priority: 6,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (u, ctx) => {
+      const k = smoothstep(ctx.ascent?.progress ?? u)
+      return P({ ...stand, squash: 1 - k * 0.17, bodyY: k * 7, headTilt: -12, pupilY: -0.8,
+        legBL: -k * 16, legBR: -k * 12, reachFL: k * 0.18, reachFR: k * 0.22, tailLift: 30, earL: -8, earR: -6 })
+    },
+  }),
+  define({
+    id: 'jump_paws_up', category: 'movement', duration: 0.8, loop: true, from: ['standing', 'ledge'], end: 'standing', priority: 7,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (u, ctx) => {
+      const k = smoothstep(ctx.ascent?.progress ?? Math.sin(u * Math.PI))
+      return P({ ...stand, reachFL: 0.35 + k * 0.65, reachFR: 0.45 + k * 0.55,
+        bodyRot: -8 * (ctx.ascent?.direction ?? 1), legBL: 16 + k * 12, legBR: 12 + k * 14, headY: -4, headTilt: -14, pupilY: -0.8,
+        stretch: 1.06, tailLift: 40, tailWag: 8, earL: 8, earR: 10, mouth: 0.6, air: 1 })
+    },
+  }),
+  define({
+    id: 'climb_scramble', category: 'movement', duration: 0.72, loop: true, from: ['standing'], end: 'standing', priority: 6,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (_u, ctx) => {
+      const stride = Math.sin(ctx.phase * Math.PI * 2)
+      return P({ ...stand, reachFL: 0.58 + stride * 0.4, reachFR: 0.58 - stride * 0.4,
+        bodyRot: -18 * (ctx.ascent?.direction ?? 1), legBL: -stride * 38, legBR: stride * 38, bodyX: stride * 2, headTilt: -10, pupilY: -0.7,
+        stretch: 1.08, headY: -4, tailLift: 16, tailWag: 5, earL: -8, earR: -6, alert: 0.65 })
+    },
+  }),
+  define({
+    id: 'climb_careful', category: 'movement', duration: 1.1, loop: true, from: ['standing'], end: 'standing', priority: 6,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (_u, ctx) => {
+      const stride = Math.sin(ctx.phase * Math.PI * 2)
+      return P({ ...stand, reachFL: 0.67 + stride * 0.28, reachFR: 0.67 - stride * 0.28,
+        bodyRot: -10 * (ctx.ascent?.direction ?? 1), legBL: -stride * 25, legBR: stride * 25, headTilt: -8, pupilY: -0.65, stretch: 1.03,
+        bodyY: Math.abs(stride) * 2, tailLift: 12, tailWag: 2, earL: -4, earR: -2, alert: 0.45 })
+    },
+  }),
+  define({
+    id: 'climb_pull_up', category: 'movement', duration: 1.2, loop: true, from: ['standing'], end: 'standing', priority: 7,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (u, ctx) => {
+      const k = smoothstep(ctx.ascent?.progress ?? u)
+      const gather = Math.sin(k * Math.PI)
+      return P({ ...stand, reachFL: (1 - k) * 0.95, reachFR: (1 - k) * 0.9,
+        bodyRot: -12 * (1 - k) * (ctx.ascent?.direction ?? 1), legBL: -gather * 36, legBR: -gather * 30, bodyY: -gather * 6, headY: -gather * 8,
+        headTilt: -8 * (1 - k), pupilY: -0.5 * (1 - k), squash: 1 - gather * 0.08,
+        chest: gather * 0.6, tailLift: 20 + k * 12, earL: -4 * (1 - k), earR: -2 * (1 - k) })
+    },
+  }),
+  define({
+    id: 'window_paw_test', category: 'desktop', duration: 1.2, from: ['standing'], end: 'standing', priority: 4,
+    locks: ['headRot', 'headTilt', 'bodyRot', 'bodyX', 'bodyY', 'headY', 'squash', 'stretch'],
+    sample: (u) => {
+      const k = bump(u)
+      return P({ ...stand, reachFR: k * 0.72, headTilt: -10 * k, headY: -4 * k, pupilY: -0.8 * k,
+        chest: k * 0.4, tailLift: 22, earL: -6 * k, earR: -4 * k, alert: k * 0.5 })
+    },
+  }),
+  define({
     id: 'climb_window', category: 'movement', duration: 0.8, loop: true, from: ['standing'], end: 'standing', priority: 6,
     sample: (_u, ctx) => P({ ...stand, ...wave(ctx.phase, 34, 2, 3), bodyRot: -18, headRot: 12, pupilY: -0.7, earL: -10, earR: -8, tailLift: 12, tailWag: 3, alert: 0.8 }),
   }),
@@ -855,6 +917,7 @@ const CLIPS: Clip[] = [
     id: 'held', category: 'emotion', duration: 1.2, loop: true, from: ['held'], end: 'held', interruptibility: 0.2, priority: 9,
     sample: (u) => P({ held: 1, danglers: 1, air: 0.8, bodyY: -12, bodyRot: -16 + Math.sin(u * Math.PI * 2) * 2, legFL: 0, legFR: 0, legBL: 0, legBR: 0, earL: 4, earR: 2, tailLift: 18, eyeL: 0.9, eyeR: 1, mouth: 0.4, squash: 0.94 }),
   }),
+  ...EXTRA_CLIPS,
 ]
 
 const byId = new Map(CLIPS.map((clip) => [clip.id, clip]))

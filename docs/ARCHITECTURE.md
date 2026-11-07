@@ -10,7 +10,7 @@ Pip is one Electron app. The puppy is drawn every frame. Decisions about what he
 | Preload | `electron/preload.ts` | Typed bridge. The pages cannot require Node |
 | Character | `src/renderer/draw/puppy.ts` | Procedural canvas puppy. No sprite sheet |
 | Rig | `src/core/pose.ts` | Numeric channels: posture, face, ears, tail, legs |
-| Animation | `src/core/animation` | Catalogue, crossfades, overlays, blinks, springs, interruption |
+| Animation | `src/core/animation` | Catalogue, pose sets, playback flavors, crossfades, overlays, blinks, springs, interruption |
 | Director | `src/core/director.ts` | Turns a posture, gait, and emote into one clip id |
 | Movement | `src/core/movement.ts` | Acceleration, gait phase, jumps, screen clamps, ledges |
 | Behaviour | `src/core/behaviour.ts` | Needs, personality, utility scores, cooldowns, intro |
@@ -53,7 +53,7 @@ Assistant state and character learning are separate. See `docs/ASSISTANT.md` for
 
 ## Environmental visits and typing
 
-The existing `world.ts` geometry and routes feed weighted window selection. Nearby exposed windows compete using salience and familiarity, with a bounded transient cooldown per window. `BehaviourEngine` schedules visits, chooses a small investigation style, follows the route and settles before considering a new goal. Ground routes remain available when a top is unreachable or climbing is disabled. Perched routes can descend before visiting a different window. The movement controller ignores the departing edge during that descent, rather than immediately landing on it again.
+The existing `world.ts` geometry and routes feed weighted window selection. Nearby exposed windows compete using salience and familiarity, with a bounded transient cooldown per window. `BehaviourEngine` schedules visits, follows the route, and settles before considering a new goal. Floor arrivals and perch rests rotate through the window pose sets in `src/core/animation/extra.ts`. See [ANIMATIONS.md](ANIMATIONS.md). Ground routes remain available when a top is unreachable or climbing is disabled. Perched routes can descend before visiting a different window. The movement controller ignores the departing edge during that descent, rather than immediately landing on it again.
 
 With typing reactions enabled, the helper samples only Core Graphics aggregate key-down activity and recency. It installs no event tap and reads no key codes or text. `TypingObserver` turns samples into bounded transient activity and start/pause edges; changing apps, disabling the feature or blocking an app clears its state. No activity history is persisted. The pet discards stale observations after 3.5 seconds and never treats their data as instructions.
 

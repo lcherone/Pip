@@ -61,10 +61,12 @@ export function drawPuppy(
   const bodyX = dir * profile * 2
   drawTail(ctx, dir, pose, wag, hipY)
   drawLeg(ctx, dir * (-26 - front * 8 + 10 * gather), hipY - 4 * gather, pose.legBL + sit * 62 * (1 - lie) + lie * 18, 0.72, true, sit, lie, pose.scratch > 0.4 && dir > 0, time, pose.held, pose.bodyRot, trick.backPlant * trick.rotation)
-  drawLeg(ctx, dir * (18 + front * 4), shoulderY, pose.legFL * 0.35 + lie * 46 + pose.danglers * 34, 0.78, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation)
+  const farFront = () => drawLeg(ctx, dir * (18 + front * 4), shoulderY, pose.legFL * 0.35 + lie * 46 + pose.danglers * 34, 0.78, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation, pose.reachFL, dir)
+  if (pose.reachFL < 0.55) farFront()
   drawBody(ctx, dir, profile, sit, lie, pose)
   drawLeg(ctx, dir * (-12 + front * 10), hipY, pose.legBR + sit * 58 * (1 - lie) + lie * 14, 1, true, sit, lie, pose.scratch > 0.4, time, pose.held, pose.bodyRot, trick.backPlant * trick.rotation)
-  drawLeg(ctx, dir * (24 - front * 6) + front * 12 * dir, shoulderY + 2, pose.legFR + lie * 40 + pose.danglers * 30, 1, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation)
+  const nearFront = () => drawLeg(ctx, dir * (24 - front * 6) + front * 12 * dir, shoulderY + 2, pose.legFR + lie * 40 + pose.danglers * 30, 1, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation, pose.reachFR, dir)
+  if (pose.reachFR < 0.55) nearFront()
 
   const headX = bodyX + dir * (12 + profile * 24) + pose.headX - dir * trick.headTuck + curl * dir * -8
   const headY = -78 + pose.headY + lie * 16 + curl * 12 + sit * 4
@@ -86,6 +88,9 @@ export function drawPuppy(
   }
   drawHead(ctx, dir, profile, front, pose, time, headRotation)
   ctx.restore()
+  // Reaching paws are in front of the muzzle, rather than disappearing behind it.
+  if (pose.reachFL >= 0.55) farFront()
+  if (pose.reachFR >= 0.55) nearFront()
   ctx.restore()
 }
 
@@ -323,6 +328,8 @@ function drawLeg(
   held: number,
   bodyRotation: number,
   plantRotation = 0,
+  reaching = 0,
+  direction = 1,
 ): void {
   ctx.save()
   ctx.translate(hipX, hipY)
@@ -340,6 +347,17 @@ function drawLeg(
     ctx.translate(0, leg.lowerLength)
     ctx.rotate((hind ? 12 : 18) * Math.PI / 180)
     paw(ctx, 0, 0)
+  } else if (!hind && reaching > 0.01) {
+    const reach = clamp(reaching, 0, 1)
+    const upper = clamp(angle, -75, 85) * (1 - reach) - (shade < 0.9 ? 170 : 156) * direction * reach
+    const upperLength = 17 + reach * 13
+    const lowerLength = 13 + reach * 11
+    ctx.rotate(upper * Math.PI / 180)
+    capsule(ctx, 0, 0, 12, upperLength)
+    ctx.translate(0, upperLength - 2)
+    ctx.rotate((shade < 0.9 ? 4 : 8) * direction * reach * Math.PI / 180)
+    capsule(ctx, 0, 0, 10, lowerLength)
+    paw(ctx, 0, lowerLength)
   } else if (scratch) {
     const pump = Math.sin(time * 16) * 0.28
     ctx.rotate(-1.15 + pump)

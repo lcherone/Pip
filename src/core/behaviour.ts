@@ -1,9 +1,10 @@
+import { chooseAscentStyle, type AscentStyle } from './ascent'
 import { TRICK_IDS, isTrick, type TrickId } from './tricks'
 import { ACTIVITIES, learningBias, type LearningMemory } from './learning'
 import { asideFrom, coversPuppy, windowFocusPoint, type DeskEvent, type DesktopWindow, type DisplayInfo } from './desktop'
 import { chooseWindow, edgeOccluded, emptyEnvironment, noteVisit, rememberRest, restingLocations, windowAffordances, readWorld, routeToWindow, type EnvironmentMemory, type RouteStep, type WorldView } from './world'
 import { clamp, mulberry32 } from './math'
-import { getClip, LIE_STYLES, SIT_STYLES, SLEEP_STYLES } from './animation/clips'
+import { getClip, LIE_STYLES, SAD_STYLES, SIT_STYLES, SLEEP_STYLES, STAND_STYLES, WINDOW_FLOOR_STYLES, WINDOW_LEDGE_STYLES } from './animation/clips'
 import type { Mood } from './animation/engine'
 import type { Gait, Posture } from './director'
 import type { Personality } from './settings'
@@ -64,6 +65,7 @@ export interface BehaviourInput {
 }
 
 export interface BehaviourOutput {
+  ascentStyle: AscentStyle
   posture: Posture
   gait: Gait
   emote: string | null
@@ -97,6 +99,7 @@ export interface BehaviourOutput {
 }
 
 export interface EnvironmentalGoal {
+  ascentStyle?: AscentStyle
   id: number
   kind: 'investigate' | 'rest' | 'recover'
   phase: 'anticipate' | 'approach' | 'interact' | 'settle' | 'edge_walk' | 'rest' | 'recover'
@@ -110,6 +113,7 @@ export interface EnvironmentalGoal {
 }
 
 interface Plan {
+  ascentStyle?: AscentStyle
   force?: boolean
   action: string
   reason: string
@@ -304,7 +308,7 @@ export class BehaviourEngine {
             this.goal.until = input.now + 1.5
             this.plan.phase = 'act'
             this.plan.gait = 'none'
-            this.plan.emote = 'sniff_ground'
+            this.plan.emote = this.goal.ascentStyle === 'careful' ? 'window_paw_test' : 'peek_up'
             this.plan.reason = 'investigating the frame before choosing the edge'
             this.plan.until = this.goal.until
             this.plan.token = ++this.token
@@ -329,8 +333,7 @@ export class BehaviourEngine {
           if (this.routeApp) this.places = noteVisit(this.places, this.routeApp, input.now, false)
           this.plan.phase = 'act'
           this.plan.gait = 'none'
-          const floorEmotes = { sniff: 'sniff_frame', watch: 'peek_up', paw: 'paw_glass' }
-          this.plan.emote = this.plan.surfaceId ? 'look_over_edge' : floorEmotes[this.visitStyle]
+          this.plan.emote = this.plan.surfaceId ? 'look_over_edge' : this.styleOf(WINDOW_FLOOR_STYLES, 3)
           this.plan.posture = this.plan.surfaceId ? 'ledge' : 'standing'
           this.plan.until = input.now + 2.5 + this.rng() * 3.5
           this.plan.token = ++this.token
@@ -406,6 +409,7 @@ export class BehaviourEngine {
     if (this.needs.curiosity > 0.66) return 'curious'
     if (this.personality.playfulness > 0.72 && this.needs.energy > 0.5) return 'playful'
     if (this.needs.attention > 0.68) return 'happy'
+    if (input.idleSeconds > 50 && this.needs.attention < 0.4 && this.needs.energy > 0.3 && this.needs.rest < 0.65) return 'sad'
     return 'calm'
   }
 
@@ -450,12 +454,22 @@ export class BehaviourEngine {
   private refreshRestPose(): void {
     const plan = this.plan
     if (!plan || plan.gait !== 'none' || !plan.emote) return
-    const styles = plan.posture === 'sitting' ? SIT_STYLES : plan.posture === 'lying' ? LIE_STYLES : null
-    if (!styles || !(styles as readonly string[]).includes(plan.emote)) return
-    const next = plan.posture === 'sitting' ? this.sitStyle() : this.lieStyle()
-    if (plan.emote === next) return
+    const next = this.restStyle(plan)
+    if (!next || plan.emote === next) return
     plan.emote = next
     plan.token = ++this.token
+  }
+
+  private restStyle(plan: Plan): string | null {
+    const emote = plan.emote
+    if (!emote) return null
+    if (plan.posture === 'sitting' && (SIT_STYLES as readonly string[]).includes(emote)) return this.sitStyle()
+    if (plan.posture === 'lying' && (LIE_STYLES as readonly string[]).includes(emote)) return this.lieStyle()
+    if (plan.action === 'sad' && (SAD_STYLES as readonly string[]).includes(emote)) return this.styleOf(SAD_STYLES, 5)
+    if (plan.action === 'stand' && (STAND_STYLES as readonly string[]).includes(emote)) return this.styleOf(STAND_STYLES, 4)
+    if ((plan.action === 'stand_watch' || plan.action === 'rest_surface') && plan.posture === 'standing' && (WINDOW_FLOOR_STYLES as readonly string[]).includes(emote)) return this.styleOf(WINDOW_FLOOR_STYLES, 4)
+    if (plan.action === 'rest_surface' && (plan.posture === 'ledge' || plan.posture === 'resting_ledge') && (WINDOW_LEDGE_STYLES as readonly string[]).includes(emote)) return this.styleOf(WINDOW_LEDGE_STYLES, 5)
+    return null
   }
 
   private hold(input: BehaviourInput, action: string, reason: string): Plan {
@@ -640,6 +654,8 @@ export class BehaviourEngine {
       }, input)
     }
     if (closed && (!this.goal || this.goal.status !== 'active' || ('windowId' in closed && closed.windowId === this.goal.windowId)) && this.ready('window_closed', input.now, 2)) {
+      this.moodLock = 'sad'
+      this.moodUntil = input.now + 8
       return this.make({
         action: 'window_closed', reason: 'a window closed', posture: 'standing', gait: 'none', emote: 'window_closed',
         targetX: null, targetY: input.floorY, surfaceId: null, until: input.now + 1, phase: 'act',
@@ -855,13 +871,36 @@ export class BehaviourEngine {
     if (choice === 'emote' && this.ready('emote', input.now, 4) && input.mode !== 'focus') {
       const perched = Boolean(input.surfaceId) && input.y < input.floorY - 40
       const emotes = perched
-        ? ['look_over_edge', 'settle_paws', 'paw_glass', 'peek_along']
-        : ['head_tilt', 'paw_adjust', 'curious', 'ear_twitch_left', 'nose_twitch', 'weight_shift', 'sniff_ground', 'lick_paw', 'sneeze', 'beg', 'dig', 'sniff_frame', 'peek_up', 'perk', 'tail_chase', 'paw_wave', 'knead', 'doze', 'lick_nose', 'wiggle', 'pounce', 'stretch_side', 'pant']
+        ? [...WINDOW_LEDGE_STYLES, 'look_over_edge', 'settle_paws', 'paw_glass', 'peek_along']
+        : this.mood === 'sad'
+          ? [...SAD_STYLES]
+          : input.windows.length
+            ? [...STAND_STYLES, ...WINDOW_FLOOR_STYLES]
+            : [...STAND_STYLES, 'head_tilt', 'paw_adjust', 'curious', 'sniff_ground', 'lick_paw', 'sneeze', 'beg', 'dig', 'tail_chase', 'paw_wave', 'knead', 'doze', 'lick_nose', 'wiggle', 'pounce', 'stretch_side', 'pant']
       const emote = emotes[Math.floor(this.rng() * emotes.length)] ?? 'head_tilt'
-      const standing = ['sniff_ground', 'dig', 'sniff_frame', 'peek_up', 'perk', 'paw_glass', 'tail_chase', 'pounce', 'stretch_side', 'pant'].includes(emote)
+      const clipForEmote = getClip(emote)
+      const standing = Boolean(clipForEmote && clipForEmote.from.includes('standing') && !clipForEmote.from.includes('sitting'))
       return this.make({
         action: emote, reason: 'a small idle habit', posture: perched ? 'ledge' : standing ? 'standing' : 'sitting', gait: 'none', emote,
         targetX: null, targetY: null, surfaceId: perched ? input.surfaceId ?? null : null, until: input.now + 1.3, phase: 'act',
+        speech: null, fx: 'none', event: null, source: null, note,
+      }, input)
+    }
+    if (choice === 'sit' && this.mood === 'sad' && input.mode !== 'focus') {
+      return this.make({
+        action: 'sad', reason: 'feeling a bit left out', posture: 'sitting', gait: 'none', emote: this.styleOf(SAD_STYLES, 5),
+        targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: input.now + 4.5, phase: 'act',
+        speech: null, fx: 'none', event: null, source: null, note,
+      }, input)
+    }
+    if (choice === 'sit' && this.needs.energy > 0.62 && this.needs.rest < 0.45 && input.mode !== 'focus' && Math.floor(this.age / 7) % 3 === 2) {
+      const watching = input.windows.length > 0 && !input.surfaceId
+      return this.make({
+        action: watching ? 'stand_watch' : 'stand',
+        reason: watching ? 'standing and watching the desk' : 'standing on his paws',
+        posture: 'standing', gait: 'none',
+        emote: watching ? this.styleOf(WINDOW_FLOOR_STYLES, 4) : this.styleOf(STAND_STYLES, 4),
+        targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: input.now + 4.2, phase: 'act',
         speech: null, fx: 'none', event: null, source: null, note,
       }, input)
     }
@@ -969,10 +1008,12 @@ export class BehaviourEngine {
     const corner = windowAffordances(this.worldInput(input)).find(item => item.windowId === window.id && item.kind === 'sniff_corner' && item.feasible)
     if (corner && steps[0]?.surfaceId === null && !input.surfaceId) steps[0]!.x = corner.target.x
     const step = steps[0]!
-    this.goal = { id: this.token + 1, kind: 'investigate', phase: 'anticipate', status: 'active', windowId: window.id, app: window.app,
+    const ascentStyle = chooseAscentStyle(input.floorY - window.bounds.y, this.needs.energy,
+      this.personality.confidence, this.personality.playfulness, this.rng())
+    this.goal = { ascentStyle, id: this.token + 1, kind: 'investigate', phase: 'anticipate', status: 'active', windowId: window.id, app: window.app,
       reason: 'a visible place worth investigating', target: { x: step.x, y: step.y }, startedAt: input.now, until: input.now + 0.65 }
     return this.make({
-      action: 'approach', reason: `noticing the ${window.app} window`, posture: input.surfaceId ? 'ledge' : 'standing', gait: 'none', emote: 'ear_twitch_left',
+      action: 'approach', reason: `noticing the ${window.app} window`, posture: input.surfaceId ? 'ledge' : 'standing', gait: 'none', emote: input.surfaceId ? 'notice_app' : this.styleOf(WINDOW_FLOOR_STYLES, 3),
       targetX: step.x, targetY: step.y, surfaceId: input.surfaceId ?? null, until: this.goal.until,
       phase: 'act', speech: null, fx: 'none', event, source, note,
     }, input)
@@ -1085,15 +1126,20 @@ export class BehaviourEngine {
     this.places = rememberRest(this.places, this.worldInput(input))
     let posture: Posture = input.surfaceId ? 'ledge' : 'sitting'
     if (stableRest && input.surfaceId && this.needs.rest > 0.6) posture = 'resting_ledge'
-    return this.make({ action: 'rest_surface', reason: stableRest ? 'a comfortable stable place to watch' : 'watching quietly after investigating', posture, gait: 'none', emote: null,
+    const onLedge = posture === 'ledge' || posture === 'resting_ledge'
+    return this.make({ action: 'rest_surface', reason: stableRest ? 'a comfortable stable place to watch' : 'watching quietly after investigating', posture, gait: 'none', emote: onLedge ? this.styleOf(WINDOW_LEDGE_STYLES, 5) : this.styleOf(WINDOW_FLOOR_STYLES, 4),
       targetX: null, targetY: null, surfaceId: input.surfaceId ?? null, until: goal.until, phase: 'act', speech: null, fx: 'none', event: 'resting_place', source: 'world', note }, input)
   }
 
   private microBehaviour(input: BehaviourInput): void {
     if (!this.plan || input.mode === 'sleep' || input.mode === 'focus') return
-    const clips = input.surfaceId && this.plan.posture !== 'resting_ledge'
-      ? ['look_over_edge', 'peek_along', 'settle_paws', 'paw_glass']
-      : ['doze', 'lick_nose', 'knead', 'ear_twitch_left', 'nose_twitch']
+    const clips = input.surfaceId
+      ? WINDOW_LEDGE_STYLES
+      : this.plan.posture === 'standing'
+        ? (input.windows.length ? WINDOW_FLOOR_STYLES : STAND_STYLES)
+        : this.mood === 'sad'
+          ? SAD_STYLES
+          : ['doze', 'lick_nose', 'knead', 'ear_twitch_left', 'nose_twitch'] as readonly string[]
     this.plan.emote = clips[Math.floor(this.rng() * clips.length)] ?? 'slow_blink'
     this.plan.token = ++this.token
     this.nextMicroAt = input.now + 6 + this.rng() * 10
@@ -1222,6 +1268,7 @@ export class BehaviourEngine {
     const gaze = this.gaze(input)
     const speech = input.mode === 'focus' && plan.event !== 'shared_text' ? null : plan.speech
     return {
+      ascentStyle: plan.ascentStyle ?? this.goal?.ascentStyle ?? 'scramble',
       posture: plan.posture,
       gait: plan.gait,
       emote: plan.emote,

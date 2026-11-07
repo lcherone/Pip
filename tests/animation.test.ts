@@ -102,4 +102,37 @@ describe('animation poses', () => {
     expect(Math.abs(jolt.value)).toBeLessThan(80)
     expect(Math.abs(jolt.velocity)).toBeLessThan(400)
   })
+
+  it('keeps ten distinct flavors without overriding ear gestures', () => {
+    expect(VARIATIONS).toHaveLength(10)
+    const clip = getClip('curious')
+    expect(clip).toBeTruthy()
+    const seen = new Set<string>()
+    for (let i = 0; i < VARIATIONS.length; i++) {
+      const pose = defaultPose()
+      applyVariation(pose, clip!, i)
+      expectSane(pose, `variation ${i}`)
+      expect(pose.earL).toBe(0)
+      expect(pose.earR).toBe(0)
+      seen.add(JSON.stringify(pose))
+    }
+    expect(seen.size).toBe(VARIATIONS.length)
+    const held = defaultPose()
+    held.held = 1
+    applyVariation(held, getClip('held')!, 6)
+    expect(held.bodyRot).toBe(0)
+    expect(held.earL).toBe(0)
+
+    const engine = new AnimationEngine()
+    const settle = () => {
+      let pose = engine.update(0.05).pose
+      for (let i = 0; i < 24; i++) pose = engine.update(0.05).pose
+      return pose
+    }
+    engine.play('curious', { force: true })
+    const first = settle()
+    engine.play('curious', { force: true })
+    const second = settle()
+    expect(first.bodyRot !== second.bodyRot || first.earL !== second.earL || first.headTilt !== second.headTilt || first.tailLift !== second.tailLift).toBe(true)
+  })
 })

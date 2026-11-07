@@ -1,3 +1,4 @@
+import type { AscentFrame } from '../ascent'
 import { clamp, smoothstep, springStep, type Spring } from '../math'
 import { clonePose, finitePose, lerpPose, POSE_KEYS, poseFrom, type BodyState, type Pose, type PoseKey } from '../pose'
 import { getClip, transitionPath } from './clips'
@@ -5,6 +6,7 @@ import { applyVariation } from './variation'
 import type { Clip, SampleCtx } from './types'
 
 export interface AnimContext {
+  ascent?: AscentFrame | null
   phase: number
   time: number
   targetYaw?: number
@@ -28,6 +30,8 @@ interface ActiveClip {
   loop: boolean
   fired: Set<string>
   finished: boolean
+  variation: number
+  variationAge: number
 }
 
 const SPRUNG: PoseKey[] = ['headRot', 'headTilt', 'earL', 'earR', 'tailLift', 'bodyRot', 'yaw']
@@ -79,6 +83,7 @@ export class AnimationEngine {
   private blinkKind: 'single' | 'double' = 'single'
   private clock = 0
   private tailPhase = 0
+  private variationSerial = 0
   lastCompleted: string | null = null
 
   constructor() {
@@ -98,6 +103,8 @@ export class AnimationEngine {
         loop: opts?.once ? false : clip.loop,
         fired: new Set(),
         finished: false,
+        variation: 0,
+        variationAge: 0,
       })
       return true
     }
@@ -144,6 +151,7 @@ export class AnimationEngine {
     this.goalSpeed = 1
     this.clock = 0
     this.tailPhase = 0
+    this.variationSerial = 0
     this.blinkIn = 2.8
     this.blinkU = -1
     this.lastCompleted = null
@@ -274,11 +282,18 @@ export class AnimationEngine {
       loop: clip.loop && !(isGoal && this.onceGoal),
       fired: new Set(),
       finished: false,
+      variation: this.variationSerial++,
+      variationAge: 0,
     }
   }
 
   private advance(active: ActiveClip | null, dt: number, onMarker: (name: string) => void): void {
     if (!active || dt <= 0) return
+    active.variationAge += dt
+    if (active.variationAge >= 2.4) {
+      active.variationAge -= 2.4
+      active.variation += 1
+    }
     const clip = getClip(active.id)
     if (!clip) return
     if (active.finished) return
@@ -303,8 +318,9 @@ export class AnimationEngine {
   }
 
   private compose(ctx: AnimContext): Pose {
-    const sampleCtx: SampleCtx = { phase: ctx.phase, time: this.clock }
-    const basePose = this.sampleBase(this.base, sampleCtx) ?? poseFrom({ sit: 1 })
+    const sampleCtx: SampleCtx = { phase: ctx.phase, time: this.clock, ascent: ctx.ascent }
+    const settled = !this.outgoing
+    const basePose = this.sampleBase(this.base, sampleCtx, settled) ?? poseFrom({ sit: 1 })
     if (this.base?.finished) {
       const release = 1 - smoothstep(this.earRelease / 0.35)
       basePose.earL *= release
@@ -312,7 +328,7 @@ export class AnimationEngine {
     }
     let pose = basePose
     if (this.outgoing && this.base) {
-      const previous = this.sampleBase(this.outgoing, sampleCtx) ?? basePose
+      const previous = this.sampleBase(this.outgoing, sampleCtx, false) ?? basePose
       pose = lerpPose(previous, basePose, this.base.weight)
     }
     for (const active of this.overlays.values()) {
@@ -329,13 +345,13 @@ export class AnimationEngine {
     return pose
   }
 
-  private sampleBase(active: ActiveClip | null, ctx: SampleCtx): Pose | null {
+  private sampleBase(active: ActiveClip | null, ctx: SampleCtx, vary: boolean): Pose | null {
     if (!active) return null
     const clip = getClip(active.id)
     if (!clip || clip.blend !== 'base') return null
     const sampled = clip.sample(clamp(active.time / clip.duration, 0, 0.999), ctx)
     const pose = poseFrom(sampled as Pose)
-    applyVariation(pose, clip, ctx.time)
+    if (vary) applyVariation(pose, clip, active.variation)
     return pose
   }
 
@@ -354,6 +370,8 @@ export class AnimationEngine {
       pose.legFR = Math.min(pose.legFR, -10)
     }
     if (ctx.held) {
+      pose.reachFL = 0
+      pose.reachFR = 0
       pose.trickRot = 0
       pose.trickPivot = 0
       pose.held = 1
@@ -448,6 +466,8 @@ export class AnimationEngine {
 }
 
 const POSE_LIMITS: Partial<Record<PoseKey, [number, number]>> = {
+  reachFL: [0, 1],
+  reachFR: [0, 1],
   headRot: [-48, 48],
   headTilt: [-36, 36],
   bodyRot: [-32, 32],

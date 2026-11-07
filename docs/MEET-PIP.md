@@ -14,7 +14,9 @@ That is one of his actual local replies. The imaginary job title is ours; the si
 
 On an ordinary launch in Chill or Playful mode, Pip has a roughly thirteen-second introduction: sit, look left, look right, stretch, take a short walk, sit again. He does not arrive demanding a task.
 
-After that, his behaviour engine weighs energy, attention, curiosity, rest, and stimulation alongside his personality, mode, events, cooldowns, and learned preferences. He might wander, investigate a window, follow you, yawn, sit, or make a little idle expression. Decisions vary, but they have reasons you can inspect in the Playground.
+After that, his behaviour engine weighs energy, attention, curiosity, rest, and stimulation alongside his personality, mode, events, cooldowns, and learned preferences. He might wander, investigate a window, follow you, yawn, sit, stand for a while, or make a little idle expression. Decisions vary, but they have reasons you can inspect in the Playground.
+
+A long rest does not freeze on one drawing. Sitting, lying, and sleeping each rotate through ten poses. When he is rested, about one quiet stretch in three is spent standing, and that standing has twenty-five poses of its own. The [animation catalogue](ANIMATIONS.md) lists every pose and when it is allowed to appear.
 
 He gets tired through activity and recovers energy while asleep. Quiet time can prompt a yawn or a nap. Returning after inactivity can earn a greeting, subject to mode and cooldowns.
 
@@ -24,7 +26,7 @@ Pip has no feeding schedule or hunger meter in the current app. His needs are be
 
 Pip does more than follow whichever app is focused. Visible windows compete for his attention according to salience, familiarity, geometry, and recent visits.
 
-An expedition can unfold as a little sequence: notice something, approach, sniff the frame or adjust a paw, hop or climb if practical, then settle and watch. If his playfulness and the edge geometry allow it, he may explore along a ledge.
+An expedition can unfold as a little sequence: notice something, approach, react at the glass, hop or climb if practical, then settle and watch. On the floor that reaction is one of fifteen: a sniff to either side, a paw tap, a stretch toward the title bar, a step back, a double-take, and others. On a perch, the first look over the edge stays, and the rest of the visit rotates through ten ledge poses, from a dangled paw to a doze. If his playfulness and the edge geometry allow it, he may explore along a ledge.
 
 He remembers familiar applications and relative resting places. Recent visits have cooldowns. Covered edges, missing headroom, disabled climbing, and mode restrictions change what is possible.
 
@@ -35,16 +37,17 @@ Move a window into him and he may sidestep. Close the window supporting him and 
 | What you notice | What is happening |
 | --- | --- |
 | A glance, then a head turn, then a body turn | Attention shifts in stages instead of snapping his whole body at every event. |
+| The same sit looking a little different a few seconds later | Sitting, lying, and sleeping each cycle through ten poses. A playback flavor also leans him, lifts or drops the tail, or crouches him slightly. |
+| He is on his paws and not going anywhere | A rested idle. Twenty-five standing poses, or a window reaction if there is something to watch. |
+| Low tail, drooped ears, chin on his paws | He has been left quietly for a while, or a window he was visiting just closed. Ten sad poses, then he carries on. |
+| Sniffing the frame, tapping the glass, stretching up at a title bar | One of fifteen floor reactions to a window. Climbing still uses the climb, not one of these poses. |
+| Dangling a paw or leaning over a perch | One of ten ledge reactions, after the first look over the edge. |
 | A blink and an ear twitch while sitting | Additive animation layers keep a resting puppy alive. |
-| Ground sniffing, frame sniffing, peeking along an edge | His idle repertoire and desktop investigations. |
-| Paw waves, kneading, wiggles, a nose lick | Expressive reactions and idle clips; not every clip is chosen in every situation. |
-| A play bow or little bounce | A playful expression, also used by certain explicit reactions. |
-| Slow breathing, twitches, dream paws, dream running | The rest and sleep animation repertoire. |
 | A celebratory stance and sparkle | A completed Codex event can make him proud and produce “Yes!” outside Focus. |
 | A puzzled failure reaction | A failed Codex event can produce “Oh.” and a confused mood outside Focus. |
 | He settles after repeated clicks | A bounded excitement signal gives him a breather after too much attention. |
 
-His animation engine recognises **calm, happy, curious, excited, sleepy, sad, playful, proud, and confused** moods. Some emerge from needs and events; others are available for explicit animation/Playground preview. A clip in the catalogue is not a guarantee that Pip will spontaneously choose it on every desktop.
+His animation engine recognises **calm, happy, curious, excited, sleepy, sad, playful, proud, and confused** moods. Sad is a real desktop mood now: a long quiet stretch with energy left, or the few seconds after a window closes. A clip in the catalogue is not a guarantee that Pip will spontaneously choose it on every desktop. The pose sets in the animation guide are the ones he rotates through on his own.
 
 Ears and tail use springs for follow-through. Gait phase advances with distance travelled, so walking feet and a sitting body do not share the same treadmill. Turns pass through a front view, and posture bridges help him get from sitting to standing or sleep to wake.
 
@@ -122,7 +125,7 @@ AI answers are generated and can vary. They do not all use the fixed local lines
 
 After a self-chosen activity, open his card within thirty seconds and choose **More of that** or **Not that**. He nudges that activity’s bounded score and avoids leaning too heavily on recent repeats.
 
-He can learn about sleeping, wandering, exploring windows, chasing the cursor, following, yawning, resting quietly, and idle expressions. He cannot learn new source code, bypass a disabled feature, or overrule your mode through feedback.
+He can learn about sleeping, wandering, exploring windows, chasing the cursor, following, yawning, resting quietly, and idle expressions. A sad pose counts as resting. Standing around, or watching a window from his paws, counts as an idle expression. He cannot learn a single pose in isolation, learn new source code, bypass a disabled feature, or overrule your mode through feedback.
 
 His animation self-check separately measures playback and pose continuity and retains bounded transition timing improvements. It is a calibration tool, not proof that every rendered pose is artistically perfect.
 

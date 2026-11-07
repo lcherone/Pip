@@ -1,8 +1,10 @@
+import type { AscentFrame } from '../ascent'
 import type { BodyState, Pose, PoseKey } from '../pose'
 
 export type ClipCategory = 'idle' | 'movement' | 'rest' | 'emotion' | 'desktop'
 
 export interface SampleCtx {
+  ascent?: AscentFrame | null
   phase: number
   time: number
 }

@@ -161,6 +161,9 @@ function createPet(): void {
     type: 'panel',
     roundedCorners: false,
     webPreferences: {
+      // A desktop pet stays animated while another application has focus.
+      // The renderer applies the user's moving/idle/sleep frame budget.
+      backgroundThrottling: false,
       preload: preloadPath(),
       contextIsolation: true,
       nodeIntegration: false,

@@ -30,6 +30,8 @@ export interface Pose {
   tailLift: number
   tailWag: number
   tailCurl: number
+  reachFL: number
+  reachFR: number
   legFL: number
   legFR: number
   legBL: number
@@ -79,6 +81,8 @@ export function defaultPose(): Pose {
     tailLift: 24,
     tailWag: 3,
     tailCurl: 0.25,
+    reachFL: 0,
+    reachFR: 0,
     legFL: 0,
     legFR: 0,
     legBL: 0,

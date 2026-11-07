@@ -1,3 +1,4 @@
+import type { AscentFrame, AscentStyle } from './ascent'
 import { clamp, shortestYaw } from './math'
 import type { DesktopWindow, DisplayInfo } from './desktop'
 import { edgeOccluded } from './world'
@@ -6,6 +7,7 @@ export type MoveKind = 'idle' | 'walk' | 'trot' | 'run' | 'back' | 'jump' | 'ski
 
 export interface MoveIntent {
   kind: MoveKind
+  ascentStyle?: AscentStyle
   targetX?: number
   targetY?: number
   surfaceId?: string | null
@@ -35,6 +37,12 @@ export class MovementController {
   skidding = false
   arrived = true
   surfaceId: string | null = null
+  ascent: AscentFrame | null = null
+  private climbId: string | null = null
+  private climbStartY = 0
+  private climbCharge = 0
+  private climbLeap = 0
+  private climbLaunched = false
   supportMotion = { x: 0, y: 0 }
   justRecovered = false
   private support: { id: string; x: number; y: number; w: number } | null = null
@@ -63,6 +71,8 @@ export class MovementController {
     this.charging = false
     this.jumpCharge = 0
     this.climbing = false
+    this.climbId = null
+    this.ascent = null
     this.arrived = true
   }
 
@@ -122,6 +132,8 @@ export class MovementController {
   }
 
   private integrate(step: number, intent: MoveIntent, world: MovementWorld): void {
+    if (intent.kind !== 'climb') this.climbId = null
+    if (intent.kind !== 'jump') this.ascent = null
     if (intent.kind === 'held') {
       this.held = true
       this.jumpCharge = 0
@@ -136,6 +148,10 @@ export class MovementController {
       return
     }
     this.held = false
+    if (this.turnT < 1) {
+      this.turnT = Math.min(1, this.turnT + step / 0.34)
+      this.yaw = shortestYaw(this.turnFrom, this.turnTo, this.turnT)
+    }
     const wasClimbing = this.climbing
     if (this.climbing && intent.kind !== 'climb') {
       this.airborne = true
@@ -179,21 +195,57 @@ export class MovementController {
       : undefined
     if (climbSurface && adx < 90 && this.y > climbSurface.bounds.y + 2) {
       const top = climbSurface.bounds.y + 2
+      const style = intent.ascentStyle ?? 'scramble'
+      if (this.climbId !== climbSurface.id) {
+        this.climbId = climbSurface.id
+        this.climbStartY = this.y
+        this.climbCharge = 0
+        this.climbLeap = 0
+        this.climbLaunched = false
+      }
       this.climbing = true
-      this.airborne = false
-      this.surfaceId = null
-      this.vx = 0
-      this.vy = -135
-      this.x += Math.sign(dx) * Math.min(adx, 100 * step)
-      const distance = Math.min(this.y - top, 135 * step)
-      this.y -= distance
-      this.phase = (this.phase + distance / 48) % 1
       this.arrived = false
+      this.vx = 0
+      if (Math.abs(dx) > 4) this.faceToward(Math.sign(dx))
+      if (style === 'spring' && !this.climbLaunched && this.climbStartY >= world.floorY - 12 && this.climbStartY - top > 220) {
+        this.climbCharge += step
+        this.airborne = false
+        this.vy = 0
+        this.ascent = { phase: 'anticipate', style, direction: this.facing, progress: Math.min(1, this.climbCharge / 0.16), remaining: this.y - top, surfaceId: climbSurface.id }
+        if (this.climbCharge < 0.16) return
+        this.climbLaunched = true
+        this.climbLeap = 0.32
+        this.vy = -610
+      }
+      this.surfaceId = null
+      this.x += Math.sign(dx) * Math.min(adx, 100 * step)
+      if (this.climbLeap > 0) {
+        this.airborne = true
+        this.climbLeap = Math.max(0, this.climbLeap - step)
+        this.vy += 1500 * step
+        const distance = Math.min(this.y - top, Math.max(0, -this.vy * step))
+        this.y -= distance
+        this.phase = (this.phase + distance / 48) % 1
+        this.ascent = { phase: 'leap', style, direction: this.facing, progress: 1 - this.climbLeap / 0.32, remaining: this.y - top, surfaceId: climbSurface.id }
+        return
+      }
+      this.airborne = false
+      const remaining = this.y - top
+      const pulling = remaining <= 90
+      const speed = pulling ? 76 : style === 'careful' ? 90 : style === 'spring' ? 135 : 125
+      this.vy = -speed
+      const distance = Math.min(remaining, speed * step)
+      this.y -= distance
+      this.phase = (this.phase + distance / (style === 'careful' ? 58 : 48)) % 1
+      this.ascent = { phase: pulling ? 'pullup' : 'climb', style, direction: this.facing,
+        progress: pulling ? 1 - remaining / 90 : (this.climbStartY - this.y) / Math.max(1, this.climbStartY - top), remaining, surfaceId: climbSurface.id }
       if (this.y <= top && Math.abs(dx) <= 20) {
         this.y = top
         this.surfaceId = climbSurface.id
         this.support = { id: climbSurface.id, x: climbSurface.bounds.x, y: climbSurface.bounds.y, w: climbSurface.bounds.w }
         this.climbing = false
+        this.climbId = null
+        this.ascent = null
         this.vy = 0
         this.arrived = true
         this.justLanded = true
@@ -202,6 +254,8 @@ export class MovementController {
     }
 
     if (wasClimbing && !this.surfaceId) {
+      this.climbId = null
+      this.ascent = null
       this.airborne = true
       this.vy = 0
     }
@@ -219,6 +273,7 @@ export class MovementController {
       this.arrived = false
       this.vx *= Math.exp(-step * 14)
       this.faceToward(Math.sign(dx) || this.facing)
+      if (intent.surfaceId) this.ascent = { phase: 'anticipate', direction: this.facing, style: intent.ascentStyle ?? 'spring', progress: Math.min(1, this.jumpCharge / 0.14), remaining: this.y - targetY, surfaceId: intent.surfaceId }
       if (this.jumpCharge < 0.14) return
       this.charging = false
       this.jumpCharge = 0
@@ -252,6 +307,8 @@ export class MovementController {
     }
 
     if (this.airborne) {
+      const destination = world.windows.find(window => window.id === intent.surfaceId && window.onScreen)
+      this.ascent = destination ? { phase: 'leap', direction: this.facing, style: intent.ascentStyle ?? 'spring', progress: clamp(1 + this.vy / 780, 0, 1), remaining: this.y - destination.bounds.y - 2, surfaceId: destination.id } : null
       const previousY = this.y
       this.vy += 1800 * step
       this.y += this.vy * step
@@ -272,6 +329,7 @@ export class MovementController {
         this.vx *= 0.4
         this.airborne = false
         this.justLanded = true
+        this.ascent = null
         this.surfaceId = landing?.id ?? null
         const support = world.windows.find(window => window.id === this.surfaceId)
         this.support = support ? { id: support.id, x: support.bounds.x, y: support.bounds.y, w: support.bounds.w } : null
@@ -293,10 +351,6 @@ export class MovementController {
     if (!this.airborne && distance > 1e-6) {
       const stride = Math.abs(this.vx) >= 180 ? 78 : Math.abs(this.vx) >= 110 ? 58 : 46
       this.phase = (this.phase + distance / stride) % 1
-    }
-    if (this.turnT < 1) {
-      this.turnT = Math.min(1, this.turnT + step / 0.34)
-      this.yaw = shortestYaw(this.turnFrom, this.turnTo, this.turnT)
     }
     this.previousSpeed = this.vx
   }

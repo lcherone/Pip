@@ -355,7 +355,7 @@ function currentFloor(): ReturnType<typeof resolveFloor> {
 let last = performance.now()
 let performing = false
 function frame(now: number): void {
-  const dt = Math.min(0.05, (now - last) / 1000)
+  const dt = Math.min(0.25, (now - last) / 1000)
   last = now
   const moving = Math.abs(movement.vx) > 12 || movement.airborne || dragging || performing
   const sleeping = behaviour.mood === 'sleepy' && !moving
@@ -423,7 +423,7 @@ function draw(dt: number): void {
   const posture: Posture = dragging ? 'held' : output.posture
   const performanceState: Performance = {
     posture, gait: output.gait, emote: thinking ? 'watch_progress' : output.emote,
-    facing: movement.facing, motion: movement.motion, force: output.force || dragging,
+    facing: movement.facing, ascent: movement.ascent, motion: movement.motion, force: output.force || dragging,
     token: output.token + (thinking ? 1000 : 0),
     airborne: movement.airborne, justLanded: movement.justLanded,
   }
@@ -435,17 +435,20 @@ function draw(dt: number): void {
       targetX: output.targetX ?? undefined,
       targetY: autonomy ? output.targetY ?? floor.floorY : floor.floorY,
       surfaceId: autonomy ? output.surfaceId : null,
+      ascentStyle: output.ascentStyle,
     }, { floorY: floor.floorY, minX: floor.minX, maxX: floor.maxX, windows: settings.windowClimbing ? windows : [], displays: desktop?.displays ?? [] })
   }
   director.sync({
     ...performanceState,
     facing: movement.facing,
     motion: movement.motion,
+    ascent: movement.ascent,
     airborne: movement.airborne,
     justLanded: movement.justLanded,
   })
   const animated = engine.update(dt, {
     phase: movement.phase,
+    ascent: movement.ascent,
     time: performance.now() / 1000,
     targetYaw: movement.yaw,
     look: output.look,
@@ -461,7 +464,7 @@ function draw(dt: number): void {
   if (worldDebug && performance.now() - worldReportAt > 500 && behaviour.worldView) {
     worldReportAt = performance.now()
     window.pip.reportWorld({ at: Date.now() / 1000, world: behaviour.worldView,
-      movement: { x: movement.x, y: movement.y, vx: movement.vx, vy: movement.vy, surfaceId: movement.surfaceId, airborne: movement.airborne, motion: movement.motion, recovered: movement.justRecovered },
+      movement: { ascent: movement.ascent, x: movement.x, y: movement.y, vx: movement.vx, vy: movement.vy, surfaceId: movement.surfaceId, airborne: movement.airborne, motion: movement.motion, recovered: movement.justRecovered },
       pose: animated.pose, action: output.action, reason: output.reason,
       capabilities: { geometry: desktop?.source === 'os' && observationsFresh ? 'available' : 'limited', accessibility: desktop?.accessibility ? 'available' : 'unavailable', detailedContent: false } })
   }

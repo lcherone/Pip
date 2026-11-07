@@ -28,12 +28,12 @@ His everyday behaviour runs locally. **Codex is optional and off by default.** C
 | 🪟 Window expeditions | Chooses visible windows to visit, sniffs frames, watches nearby, and climbs or perches where geometry permits. |
 | 👀 Extremely serious noticing | Follows interesting things with his eyes, then his head, then his body. Tiny ear twitches included. |
 | 💤 Professional resting | Yawns, stretches, curls up, breathes in his sleep, twitches, and dreams of running. |
-| 💛 A whole vocabulary of puppy | Wags, wiggles, play bows, paw waves, nose licks, head tilts, and occasional tail chasing. |
+| 💛 A whole vocabulary of puppy | Ten ways to sit, lie, or sleep, ten ways to be sad, twenty-five ways to stand, and twenty-five ways to answer a window. |
 | ⌨️ Quiet company | Reacts to typing cadence and pauses using aggregate activity counters, without reading the words. |
 | 🧠 Little local habits | Learns which activities you encourage and remembers familiar apps and relative resting places. |
 | 💬 A paw with your project | With Codex connected, streams answers and handles project tasks through visible approval controls. |
 
-Pip is drawn procedurally, frame by frame. His body, face, paws, ears, and tail form a numeric rig with layered animation and springs. The [animation catalogue](docs/ANIMATIONS.md) has the full repertoire; the Playground lets you inspect it.
+Pip is drawn procedurally, frame by frame. His body, face, paws, ears, and tail form a numeric rig with layered animation and springs. The [animation catalogue](docs/ANIMATIONS.md) lists every clip and which poses he rotates through on his own. The Playground can play the lot.
 
 ## Bring Pip home
 

@@ -1,3 +1,4 @@
+import type { AscentFrame } from './ascent'
 import type { AnimationEngine } from './animation/engine'
 import { getClip } from './animation/clips'
 import type { MotionKind, MoveKind } from './movement'
@@ -6,6 +7,7 @@ export type Posture = 'standing' | 'sitting' | 'lying' | 'sleeping' | 'held' | '
 export type Gait = 'none' | 'walk' | 'trot' | 'run' | 'back' | 'jump' | 'climb'
 
 export interface Performance {
+  ascent?: AscentFrame | null
   posture: Posture
   gait: Gait
   emote: string | null
@@ -21,6 +23,12 @@ export interface Performance {
 export function resolveClip(performance: Performance): string {
   if (performance.posture === 'held') return 'held'
   if (performance.justLanded) return performance.posture === 'ledge' || performance.posture === 'resting_ledge' ? 'land_ledge' : 'land'
+  if (performance.ascent) {
+    if (performance.ascent.phase === 'anticipate') return 'window_ready'
+    if (performance.ascent.phase === 'leap') return 'jump_paws_up'
+    if (performance.ascent.phase === 'pullup') return 'climb_pull_up'
+    return performance.ascent.style === 'careful' ? 'climb_careful' : 'climb_scramble'
+  }
   if (performance.motion === 'crouch') return 'jump'
   if (performance.motion === 'climb') return 'climb_window'
   if (performance.airborne || performance.motion === 'air') return 'jump'
