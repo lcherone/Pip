@@ -57,6 +57,32 @@ const lie = { lie: 1, sit: 0.15, bodyY: 4, headY: 10, headRot: -8, tailLift: 8, 
 const sleep = { ...lie, lie: 1, curl: 0.9, eyeL: 0.02, eyeR: 0.02, tailCurl: 0.8, tailLift: 4, tailWag: 0, mouth: 0, headRot: -16, headY: 16 }
 const stand = { sit: 0, lie: 0, tailLift: 24, mouth: 0.22 }
 
+export const SIT_STYLES = ['idle_sit', 'sit_lean', 'sit_sprawl', 'sit_side', 'sit_tall', 'sit_curl', 'sit_lazy', 'sit_cocked', 'sit_loaf', 'sit_proud'] as const
+export const LIE_STYLES = ['idle_lie', 'lie_flat', 'lie_side', 'lie_curl', 'lie_belly', 'lie_stretch', 'lie_chin', 'lie_sprawl', 'lie_tuck', 'lie_lazy'] as const
+export const SLEEP_STYLES = ['sleep_breathe', 'sleep_curl', 'sleep_sprawl', 'sleep_side', 'sleep_belly', 'sleep_tuck', 'sleep_loaf', 'snore', 'dream_paws', 'dream_run'] as const
+
+function varied(id: string, category: ClipCategory, from: BodyState, end: BodyState, base: PartialPose, interruptibility = 0.9, priority = 1, locks: Clip['locks'] = []): Clip {
+  return define({
+    id, category, duration: 3.4, loop: true, from: [from], end, interruptibility, priority, locks,
+    sample: (u) => {
+      const sway = Math.sin(u * Math.PI * 2)
+      return P({ ...base, breath: 1 + sway * 0.08, bodyX: (base.bodyX ?? 0) + sway * 1.6, headRot: (base.headRot ?? 0) + sway * 1.8 })
+    },
+  })
+}
+
+function trickEnvelope(u: number): number {
+  return smoothstep(u / 0.2) * (1 - smoothstep((u - 0.76) / 0.24))
+}
+
+/** Keep a rolling skull/body above the floor while the paws turn upwards. */
+function rollGrounding(degrees: number): number {
+  const angle = degrees * Math.PI / 180
+  const head = -45 + 36 * Math.sin(angle) - 33 * Math.cos(angle) + 36
+  const body = -45 + 2 * Math.sin(angle) + 9 * Math.cos(angle) + Math.hypot(48 * Math.sin(angle), 26 * Math.cos(angle))
+  return -Math.max(0, head, body)
+}
+
 const CLIPS: Clip[] = [
   define({
     id: 'idle_stand', category: 'idle', duration: 3.2, loop: true, from: ['standing'], end: 'standing', interruptibility: 0.9, priority: 1,
@@ -66,10 +92,28 @@ const CLIPS: Clip[] = [
     id: 'idle_sit', category: 'idle', duration: 3.4, loop: true, from: ['sitting'], end: 'sitting', interruptibility: 0.92, priority: 1,
     sample: (u) => P({ ...sit, bodyX: Math.sin(u * Math.PI * 2) * 1.6, headRot: Math.sin(u * Math.PI * 2 + 0.4) * 4, headTilt: Math.sin(u * Math.PI * 2) * 2, breath: 1 }),
   }),
+  varied('sit_lean', 'idle', 'sitting', 'sitting', { ...sit, bodyRot: -26, headRot: -22, headTilt: 14, legFR: 22, tailLift: 12, earL: 16, earR: -8 }),
+  varied('sit_sprawl', 'idle', 'sitting', 'sitting', { ...sit, sit: 0.4, lie: 0.2, legFR: 42, legBR: 28, bodyY: 12, squash: 0.8, headY: 14, tailLift: 6, danglers: 0.35 }),
+  varied('sit_side', 'idle', 'sitting', 'sitting', { ...sit, bodyRot: 26, headRot: 24, danglers: 0.55, legFR: -16, tailLift: 10, earR: 18 }),
+  varied('sit_tall', 'idle', 'sitting', 'sitting', { ...sit, chest: 1, stretch: 1.22, squash: 0.86, headY: -12, headTilt: -14, earL: -32, earR: -30, tailLift: 68, alert: 0.9 }),
+  varied('sit_curl', 'idle', 'sitting', 'sitting', { ...sit, lie: 0.48, sit: 0.75, curl: 0.85, headY: 18, headRot: -20, tailCurl: 1, tailLift: 2, bodyY: 8, earL: 14, earR: 16 }),
+  varied('sit_lazy', 'idle', 'sitting', 'sitting', { ...sit, lie: 0.4, headY: 20, eyeL: 0.32, eyeR: 0.28, earL: 32, earR: 34, squash: 0.76, tailLift: 2, danglers: 0.7, mouth: 0.08 }),
+  varied('sit_cocked', 'idle', 'sitting', 'sitting', { ...sit, headTilt: -24, headRot: 20, earL: -42, earR: 20, alert: 0.9, tailLift: 40, chest: 0.4 }),
+  varied('sit_loaf', 'idle', 'sitting', 'sitting', { ...sit, squash: 0.66, stretch: 1.18, bodyY: 14, legFR: 6, legFL: 6, headY: 10, tailLift: 4, earL: 14, earR: 16 }),
+  varied('sit_proud', 'idle', 'sitting', 'sitting', { ...sit, chest: 1, headTilt: -16, earL: -26, earR: -24, tailWag: 16, tailLift: 72, mouth: 0.85, stretch: 1.14, bodyY: -6, alert: 1 }),
   define({
     id: 'idle_lie', category: 'idle', duration: 3.6, loop: true, from: ['lying'], end: 'lying', interruptibility: 0.75, priority: 1,
     sample: (u) => P({ ...lie, breath: 1.15, bodyX: Math.sin(u * Math.PI * 2) * 1.2, headY: 10 + Math.sin(u * Math.PI * 2) * 1.5 }),
   }),
+  varied('lie_flat', 'idle', 'lying', 'lying', { ...lie, curl: 0, legFR: 20, legFL: 16, headY: 8, headRot: -2, tailLift: 6 }),
+  varied('lie_side', 'idle', 'lying', 'lying', { ...lie, bodyRot: 26, curl: 0.15, headRot: 16, earL: 12, legFR: 10, danglers: 0.25 }),
+  varied('lie_curl', 'idle', 'lying', 'lying', { ...lie, curl: 0.75, headRot: -22, headY: 18, tailCurl: 0.8, tailLift: 2, earL: 10, earR: 12, eyeL: 0.7, eyeR: 0.65 }),
+  varied('lie_belly', 'idle', 'lying', 'lying', { ...lie, curl: 0, legFL: -28, legFR: -24, legBL: -12, headY: 6, headRot: 4, tailWag: 6, eyeL: 0.9, eyeR: 0.95 }),
+  varied('lie_stretch', 'idle', 'lying', 'lying', { ...lie, curl: 0.05, stretch: 1.28, legFR: 36, legFL: 30, headY: 4, headTilt: -8, tailLift: 18 }),
+  varied('lie_chin', 'idle', 'lying', 'lying', { ...lie, headY: 24, headRot: -8, eyeL: 0.45, eyeR: 0.4, earL: 18, earR: 20, muzzle: 1, tailLift: 4 }),
+  varied('lie_sprawl', 'idle', 'lying', 'lying', { ...lie, curl: 0, bodyRot: -12, legFR: 40, legBR: 26, legFL: 22, squash: 0.78, headY: 12, tailLift: 8 }),
+  varied('lie_tuck', 'idle', 'lying', 'lying', { ...lie, curl: 0.45, headY: 20, headRot: -26, bodyY: 6, tailCurl: 0.6, earL: 16, earR: 14 }),
+  varied('lie_lazy', 'idle', 'lying', 'lying', { ...lie, squash: 0.72, headY: 16, eyeL: 0.35, eyeR: 0.3, earL: 28, earR: 30, danglers: 0.4, tailLift: 2, mouth: 0.08 }),
   define({
     id: 'gentle_breathing', category: 'idle', duration: 2.8, loop: true, blend: 'add', slot: 'body', from: ['standing', 'sitting', 'lying', 'sleeping', 'ledge'], end: null, interruptibility: 1, priority: 1,
     sample: (u) => {
@@ -292,6 +336,12 @@ const CLIPS: Clip[] = [
     id: 'sleep_breathe', category: 'rest', duration: 3.2, loop: true, from: ['sleeping'], end: 'sleeping', interruptibility: 0.08, priority: 2, locks: ['eyeL', 'eyeR'],
     sample: (u) => P({ ...sleep, breath: 0.7 + Math.sin(u * Math.PI * 2) * 0.15, chest: Math.sin(u * Math.PI * 2) * 0.4, bodyY: 4 + Math.sin(u * Math.PI * 2) * 0.6 }),
   }),
+  varied('sleep_curl', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 1, bodyRot: -28, headRot: -36, headY: 24, tailCurl: 1, legFR: 10 }, 0.08, 2, ['eyeL', 'eyeR']),
+  varied('sleep_sprawl', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 0, bodyRot: 6, legFR: 48, legFL: 36, legBR: 24, headRot: 0, headY: 6 }, 0.08, 2, ['eyeL', 'eyeR']),
+  varied('sleep_side', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 0.1, bodyRot: 26, headRot: 22, earL: 22, danglers: 0.35 }, 0.08, 2, ['eyeL', 'eyeR']),
+  varied('sleep_belly', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 0, legFL: -40, legFR: -36, legBL: -18, legBR: -14, headRot: 2, headY: 4 }, 0.08, 2, ['eyeL', 'eyeR']),
+  varied('sleep_tuck', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 1, headY: 28, headRot: -34, muzzle: 2, earL: 26, earR: 24, bodyY: 6 }, 0.08, 2, ['eyeL', 'eyeR']),
+  varied('sleep_loaf', 'rest', 'sleeping', 'sleeping', { ...sleep, curl: 0.5, squash: 0.66, stretch: 1.2, bodyY: 12, headY: 16, headRot: -6 }, 0.08, 2, ['eyeL', 'eyeR']),
   define({
     id: 'sleep_twitch', category: 'rest', duration: 0.45, from: ['sleeping'], end: 'sleeping', interruptibility: 0.2, priority: 3, locks: ['eyeL', 'eyeR'],
     sample: (u) => P({ ...sleep, legBL: 8 + bump(u) * 22, earL: bump(u) * -10, bodyRot: bump(u) * 4 }),
@@ -565,6 +615,66 @@ const CLIPS: Clip[] = [
     sample: (u) => {
       const paw = Math.sin(u * Math.PI * 6)
       return P({ ...stand, legFL: -16 + paw * 14, legFR: -16 - paw * 14, headY: 10, headTilt: 8, bodyY: 3, earL: 4, earR: 4, tailWag: 8, tailLift: 22, squash: 0.96 })
+    },
+  }),
+  define({
+    id: 'roll_over', category: 'emotion', duration: 2.6, from: ['standing'], end: 'standing',
+    interruptibility: 0.95, priority: 5, locks: ['bodyRot', 'headRot', 'headTilt'],
+    markers: [{ at: 0.48, name: 'belly_up' }, { at: 0.94, name: 'paws_down' }],
+    sample: (u) => {
+      const k = Math.sin(smoothstep(u) * Math.PI)
+      const roll = 180 * k
+      const paws = Math.sin(u * Math.PI * 8) * k
+      return P({ ...stand, trickRot: roll, bodyY: rollGrounding(roll),
+        legFL: -36 * k + paws * 18, legFR: -22 * k - paws * 18, legBL: 26 * k - paws * 12, legBR: 18 * k + paws * 12,
+        earL: -18 * k, earR: -14 * k, tailWag: 18, tailLift: 36, mouth: 0.9, eyeL: 0.9, eyeR: 0.9 })
+    },
+  }),
+  define({
+    id: 'belly_rub', category: 'emotion', duration: 3.2, from: ['standing'], end: 'standing',
+    interruptibility: 0.95, priority: 5, locks: ['bodyRot', 'headRot', 'headTilt'],
+    sample: (u) => {
+      const k = trickEnvelope(u)
+      const roll = 164 * k
+      const pedal = Math.sin(u * Math.PI * 12) * k
+      return P({ ...stand, trickRot: roll, bodyY: rollGrounding(roll), bodyX: Math.sin(u * Math.PI * 6) * k * 3,
+        legFL: -45 * k + pedal * 24, legFR: -45 * k - pedal * 24, legBL: 12 * k - pedal * 20, legBR: 12 * k + pedal * 20,
+        tailWag: 24, tailLift: 40, mouth: 1.3, eyeL: 0.65 + (1 - k) * 0.35, eyeR: 0.7 + (1 - k) * 0.3 })
+    },
+  }),
+  define({
+    id: 'stand_two_paws', category: 'emotion', duration: 2.8, from: ['standing'], end: 'standing',
+    interruptibility: 0.92, priority: 5, locks: ['bodyRot', 'headRot', 'headTilt'],
+    markers: [{ at: 0.25, name: 'balanced' }],
+    sample: (u) => {
+      const k = trickEnvelope(u)
+      const sway = Math.sin(u * Math.PI * 8) * k
+      return P({ ...stand, trickRot: -70 * k + sway * 3, trickPivot: -1,
+        legFL: -55 * k - sway * 8, legFR: -48 * k + sway * 10, legBL: 0, legBR: 0,
+        headY: -4 * k, earL: -10 * k, earR: -8 * k, tailWag: 24, tailLift: 48, mouth: 1.1, alert: k })
+    },
+  }),
+  define({
+    id: 'handstand', category: 'emotion', duration: 2.9, from: ['standing'], end: 'standing',
+    interruptibility: 0.95, priority: 5, locks: ['bodyRot', 'headRot', 'headTilt'],
+    markers: [{ at: 0.3, name: 'front_paws_planted' }, { at: 0.9, name: 'hind_paws_down' }],
+    sample: (u) => {
+      const k = trickEnvelope(u)
+      const kick = Math.sin(u * Math.PI * 8) * k
+      return P({ ...stand, trickRot: 78 * k, trickPivot: 1,
+        legFL: 0, legFR: 0, legBL: -34 * k + kick * 14, legBR: -20 * k - kick * 14,
+        headY: -8 * k, tailWag: 16, tailLift: 30 + 12 * k, earL: 16 * k, earR: 12 * k, mouth: 0.75, alert: k })
+    },
+  }),
+  define({
+    id: 'happy_dance', category: 'emotion', duration: 2.4, from: ['standing'], end: 'standing',
+    interruptibility: 0.92, priority: 5, locks: ['bodyRot', 'headRot', 'headTilt'],
+    sample: (u) => {
+      const k = trickEnvelope(u)
+      const step = Math.sin(u * Math.PI * 10) * k
+      return P({ ...stand, trickRot: -58 * k + step * 4, trickPivot: -1,
+        legFL: -48 * k + step * 30, legFR: -48 * k - step * 30, legBL: 0, legBR: 0,
+        headTilt: step * 8, tailWag: 32, tailLift: 50, mouth: 1.6, earL: -12 * k, earR: -16 * k })
     },
   }),
   define({

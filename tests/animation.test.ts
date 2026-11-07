@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { listClips } from '../src/core/animation/clips'
+import { getClip, listClips } from '../src/core/animation/clips'
 import { AnimationEngine } from '../src/core/animation/engine'
+import { VARIATIONS, applyVariation } from '../src/core/animation/variation'
 import { springStep } from '../src/core/math'
-import { finitePose, POSE_KEYS, type Pose } from '../src/core/pose'
+import { defaultPose, finitePose, POSE_KEYS, type Pose } from '../src/core/pose'
 
 function expectSane(pose: Pose, where: string): void {
   expect(finitePose(pose), where).toBe(true)

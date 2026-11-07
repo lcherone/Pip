@@ -1,3 +1,4 @@
+import { isTrick } from './tricks'
 import { clamp } from './math'
 
 export const ACTIVITIES = ['sleep', 'wander', 'approach', 'chase', 'follow', 'yawn', 'sit', 'emote'] as const
@@ -50,6 +51,7 @@ export function learningBias(activity: Activity, memory: LearningMemory, history
 
 export function activityForAction(action: string): Activity | null {
   if (isActivity(action)) return action
+  if (isTrick(action)) return 'emote'
   if (action === 'idle_sit' || action === 'stay') return 'sit'
   if (action === 'dodge') return 'approach'
   if (['head_tilt', 'paw_adjust', 'curious', 'ear_twitch_left', 'nose_twitch', 'weight_shift', 'notice', 'sniff', 'perk', 'peek', 'listen', 'duck', 'shake_off', 'sniff_frame', 'paw_glass', 'settle_paws', 'tail_chase', 'paw_wave', 'knead', 'doze', 'lick_nose', 'wiggle', 'pounce', 'stretch_side', 'pant', 'peek_along'].includes(action)) return 'emote'

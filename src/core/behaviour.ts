@@ -1,8 +1,9 @@
+import { TRICK_IDS, isTrick, type TrickId } from './tricks'
 import { ACTIVITIES, learningBias, type LearningMemory } from './learning'
 import { asideFrom, coversPuppy, windowFocusPoint, type DeskEvent, type DesktopWindow, type DisplayInfo } from './desktop'
 import { chooseWindow, edgeOccluded, emptyEnvironment, noteVisit, rememberRest, restingLocations, windowAffordances, readWorld, routeToWindow, type EnvironmentMemory, type RouteStep, type WorldView } from './world'
 import { clamp, mulberry32 } from './math'
-import { getClip } from './animation/clips'
+import { getClip, LIE_STYLES, SIT_STYLES, SLEEP_STYLES } from './animation/clips'
 import type { Mood } from './animation/engine'
 import type { Gait, Posture } from './director'
 import type { Personality } from './settings'
@@ -152,6 +153,8 @@ export class BehaviourEngine {
   private token = 1
   private cooldowns = new Map<string, number>()
   private excitement = 0
+  private nextTrickAt = 0
+  private lastTrick: TrickId | null = null
   private settleUntil = 0
   private followUntil = 0
   private exploreUntil = 0
@@ -245,9 +248,8 @@ export class BehaviourEngine {
 
     if (this.asleep) {
       if (this.shouldWake(input)) return this.output(this.wake(input, note), input)
-      const dreams = [null, 'dream_paws', 'snore', 'dream_run', 'sleep_twitch'] as const
       return this.output(this.make({
-        action: 'sleep', reason: 'still asleep', posture: 'sleeping', gait: 'none', emote: dreams[Math.floor(this.age / 8) % dreams.length] ?? null,
+        action: 'sleep', reason: 'still asleep', posture: 'sleeping', gait: 'none', emote: this.styleOf(SLEEP_STYLES, 4),
         targetX: null, targetY: null, surfaceId: null, until: input.now + 30, phase: 'act',
         speech: null, fx: 'none', event: null, source: null, note: note ?? 'sleep ignores ordinary cursor movement',
       }, input), input)
@@ -257,7 +259,7 @@ export class BehaviourEngine {
     if (input.mode === 'sleep') return this.output(this.startSleep(input, 'sleep mode'), input)
     if (input.now < this.settleUntil && !input.events.some(event => event.type === 'petted')) {
       return this.output(this.make({
-        action: 'settle', reason: 'settling down after too much attention', posture: 'sitting', gait: 'none', emote: null,
+        action: 'settle', reason: 'settling down after too much attention', posture: 'sitting', gait: 'none', emote: this.sitStyle(),
         targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: this.settleUntil, phase: 'act',
         speech: null, fx: 'none', event: null, source: null, note,
       }, input), input)
@@ -356,6 +358,7 @@ export class BehaviourEngine {
         }
       }
       if (this.goal?.phase === 'rest' && input.now >= this.nextMicroAt && this.plan) this.microBehaviour(input)
+      this.refreshRestPose()
       if (this.plan && input.now < this.plan.until) return this.output(this.plan, input)
     }
 
@@ -431,6 +434,30 @@ export class BehaviourEngine {
     }, input)
   }
 
+  private styleOf(styles: readonly string[], seconds: number): string {
+    return styles[Math.floor(this.age / seconds) % styles.length] ?? styles[0]!
+  }
+
+  private sitStyle(): string {
+    return this.styleOf(SIT_STYLES, 6)
+  }
+
+  private lieStyle(): string {
+    return this.styleOf(LIE_STYLES, 8)
+  }
+
+  /** A long rest keeps shifting through its pose set instead of freezing on the first one. */
+  private refreshRestPose(): void {
+    const plan = this.plan
+    if (!plan || plan.gait !== 'none' || !plan.emote) return
+    const styles = plan.posture === 'sitting' ? SIT_STYLES : plan.posture === 'lying' ? LIE_STYLES : null
+    if (!styles || !(styles as readonly string[]).includes(plan.emote)) return
+    const next = plan.posture === 'sitting' ? this.sitStyle() : this.lieStyle()
+    if (plan.emote === next) return
+    plan.emote = next
+    plan.token = ++this.token
+  }
+
   private hold(input: BehaviourInput, action: string, reason: string): Plan {
     return this.plan ?? this.make({
       action, reason, posture: 'sitting', gait: 'none', emote: null,
@@ -445,7 +472,7 @@ export class BehaviourEngine {
     if (force.action === 'sit') {
       this.anchorX = input.x
       return this.make({
-        action: 'sit', reason: 'asked to sit', posture: 'sitting', gait: 'none', emote: null,
+        action: 'sit', reason: 'asked to sit', posture: 'sitting', gait: 'none', emote: this.sitStyle(),
         targetX: input.x, targetY: input.floorY, surfaceId: null, until: input.now + 6, phase: 'act',
         speech: null, fx: 'none', event: 'sit', source: 'user', note,
       }, input)
@@ -479,7 +506,7 @@ export class BehaviourEngine {
       this.stayUntil = input.now + 40
       this.anchorX = input.x
       return this.make({
-        action: 'stay', reason: 'staying here', posture: 'sitting', gait: 'none', emote: null,
+        action: 'stay', reason: 'staying here', posture: 'sitting', gait: 'none', emote: this.sitStyle(),
         targetX: input.x, targetY: input.floorY, surfaceId: null, until: input.now + 8, phase: 'act',
         speech: null, fx: 'none', event: 'stay', source: 'user', note,
       }, input)
@@ -498,13 +525,17 @@ export class BehaviourEngine {
         speech: null, fx: 'paws', event: 'play', source: 'user', note,
       }, input)
     }
-    const emote = force.emote ?? 'head_tilt'
+    let emote = force.emote ?? 'head_tilt'
+    const blockedTrick = isTrick(emote) && !this.canTrick(input)
+    if (blockedTrick) emote = input.surfaceId ? 'tail_slow_wag' : 'happy_wag'
     const clip = getClip(emote)
-    const posture: Posture = clip && clip.from.includes('standing') && !clip.from.includes('sitting') ? 'standing' : 'sitting'
+    let posture: Posture = 'sitting'
+    if (clip?.from.includes('standing') && !clip.from.includes('sitting')) posture = 'standing'
+    if (blockedTrick && input.surfaceId) posture = 'ledge'
     return this.make({
-      action: emote, reason: 'requested animation', posture, gait: 'none',
-      emote, targetX: null, targetY: null, surfaceId: null,
-      until: input.now + 1.5, phase: 'act', speech: null, fx: 'none', event: 'emote', source: 'user', note,
+      action: emote, reason: blockedTrick ? 'saving tricks for safe open ground' : 'requested animation', posture, gait: 'none',
+      emote, targetX: null, targetY: null, surfaceId: input.surfaceId ?? null,
+      until: input.now + (clip?.duration ?? 1.5) + 0.9, phase: 'act', speech: null, fx: 'none', event: 'emote', source: 'user', note,
     }, input)
   }
 
@@ -549,6 +580,14 @@ export class BehaviourEngine {
       this.cancelGoal('enjoying pats from the user')
       this.settleUntil = 0
       this.excitement = Math.min(2.2, this.excitement + 0.24)
+      // Further pats encourage the trick without restarting its wind-up.
+      if (this.plan && isTrick(this.plan.emote) && input.now < this.plan.until) {
+        this.mood = 'excited'
+        return this.plan
+      }
+      if (this.excitement >= 1.2 && input.mode === 'playful' && this.canTrick(input) && input.now >= this.nextTrickAt) {
+        return this.performTrick(this.chooseTrick(), input, 'showing off after all those pats', 'petted')
+      }
       const excited = this.excitement >= 1.2 && input.mode !== 'focus'
       const wiggly = this.excitement >= 0.65 && input.mode !== 'focus'
       const perched = Boolean(input.surfaceId)
@@ -585,7 +624,7 @@ export class BehaviourEngine {
         this.settleUntil = input.now + 8
         this.excitement = 0.4
         return this.make({
-          action: 'settle', reason: 'that was a lot of pats', posture: 'sitting', gait: 'none', emote: null,
+          action: 'settle', reason: 'that was a lot of pats', posture: 'sitting', gait: 'none', emote: this.sitStyle(),
           targetX: null, targetY: null, surfaceId: null, until: input.now + 8, phase: 'act',
           speech: null, fx: 'none', event: clicked.type, source: clicked.source, note,
         }, input)
@@ -728,7 +767,38 @@ export class BehaviourEngine {
     return null
   }
 
+  private canTrick(input: BehaviourInput): boolean {
+    if (input.surfaceId || input.airborne || input.dragging || input.paused || input.mode === 'focus' || input.mode === 'sleep') return false
+    if (this.needs.energy < 0.45 || this.needs.rest > 0.65 || Math.abs(input.y - input.floorY) > 12) return false
+    const scale = (input.petSize?.w ?? 120) / 120
+    return input.x - input.minX >= 90 * scale && input.maxX - input.x >= 90 * scale
+  }
+
+  private chooseTrick(): TrickId {
+    const choices = TRICK_IDS.filter(id => id !== this.lastTrick)
+    const trick = choices[Math.floor(this.rng() * choices.length)] ?? 'roll_over'
+    this.lastTrick = trick
+    return trick
+  }
+
+  private performTrick(emote: TrickId, input: BehaviourInput, reason: string, event: string | null): Plan {
+    this.cancelGoal('playing on open ground')
+    this.nextTrickAt = input.now + 24 + this.rng() * 24
+    this.mood = 'excited'
+    this.moodLock = 'excited'
+    this.moodUntil = input.now + (getClip(emote)?.duration ?? 3) + 0.9
+    return this.make({
+      action: emote, reason, posture: 'standing', gait: 'none', emote,
+      targetX: null, targetY: null, surfaceId: null, until: this.moodUntil, phase: 'act',
+      speech: null, fx: event === 'petted' ? 'hearts' : 'none', event, source: event ? 'user' : 'world', note: null,
+    }, input)
+  }
+
   private decide(input: BehaviourInput, note: string | null): Plan {
+    if (this.age > 8 && input.mode === 'playful' && this.personality.playfulness > 0.55 && this.canTrick(input) && input.now >= this.nextTrickAt) {
+      this.nextTrickAt = input.now + 32 + this.rng() * 36
+      if (this.rng() < this.personality.playfulness * 0.65) return this.performTrick(this.chooseTrick(), input, 'feeling playful and showing off', null)
+    }
     const windowEvent = input.events.find((event) => event.type === 'window_opened' || event.type === 'app_launched' || event.type === 'app_activated')
     const adapting = input.memoryEnabled && input.learningEnabled && input.mode !== 'focus' && input.mode !== 'sleep'
     const scores = DECISIONS.map((id) => {
@@ -795,9 +865,10 @@ export class BehaviourEngine {
         speech: null, fx: 'none', event: null, source: null, note,
       }, input)
     }
+    const lyingDown = this.needs.rest > 0.65
     return this.make({
       action: 'idle_sit', reason: this.scores[0] ? `sitting wins (${this.scores[0].id} ${this.scores[0].score.toFixed(2)})` : 'nothing better to do',
-      posture: this.needs.rest > 0.65 ? 'lying' : 'sitting', gait: 'none', emote: null,
+      posture: lyingDown ? 'lying' : 'sitting', gait: 'none', emote: lyingDown ? this.lieStyle() : this.sitStyle(),
       targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: input.now + (input.mode === 'chill' ? 5 : 3.2),
       phase: 'act', speech: null, fx: 'none', event: null, source: null, note,
     }, input)
@@ -1159,7 +1230,7 @@ export class BehaviourEngine {
       surfaceId: plan.surfaceId,
       look: gaze.look,
       headLook: gaze.headLook,
-      faceX: gaze.faceX,
+      faceX: isTrick(plan.emote) ? null : gaze.faceX,
       force: plan.force === true || plan.action === 'held' || plan.event === 'wake',
       token: plan.token,
       reason: plan.reason,

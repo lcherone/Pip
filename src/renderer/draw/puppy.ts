@@ -1,3 +1,5 @@
+import { earHinge } from '../../core/ears'
+import { trickFrame, unrotatePoint } from '../../core/tricks'
 import { suspendedLeg } from '../../core/rig'
 import { clamp, smoothstep } from '../../core/math'
 import type { Pose } from '../../core/pose'
@@ -47,34 +49,42 @@ export function drawPuppy(
   drawShadow(ctx, pose, sit, lie)
   ctx.translate(pose.bodyX, drop)
   ctx.rotate((clamp(pose.bodyRot, -32, 32) * Math.PI) / 180)
+  const trick = trickFrame(pose)
+  ctx.translate(trick.x, trick.y)
+  ctx.rotate(trick.rotation * Math.PI / 180)
+  ctx.translate(-trick.x, -trick.y)
   ctx.scale(clamp(pose.stretch, 0.75, 1.35), clamp(pose.squash, 0.62, 1.35) * breath)
 
+  const gather = trick.backPlant * Math.min(1, Math.abs(trick.rotation) / 60)
   const hipY = -30
   const shoulderY = -36
   const bodyX = dir * profile * 2
   drawTail(ctx, dir, pose, wag, hipY)
-  drawLeg(ctx, dir * (-26 - front * 8), hipY, pose.legBL + sit * 62 * (1 - lie) + lie * 18, 0.72, true, sit, lie, pose.scratch > 0.4 && dir > 0, time, pose.held, pose.bodyRot)
-  drawLeg(ctx, dir * (18 + front * 4), shoulderY, pose.legFL * 0.35 + lie * 46 + pose.danglers * 34, 0.78, false, 0, lie, false, time, pose.held, pose.bodyRot)
+  drawLeg(ctx, dir * (-26 - front * 8 + 10 * gather), hipY - 4 * gather, pose.legBL + sit * 62 * (1 - lie) + lie * 18, 0.72, true, sit, lie, pose.scratch > 0.4 && dir > 0, time, pose.held, pose.bodyRot, trick.backPlant * trick.rotation)
+  drawLeg(ctx, dir * (18 + front * 4), shoulderY, pose.legFL * 0.35 + lie * 46 + pose.danglers * 34, 0.78, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation)
   drawBody(ctx, dir, profile, sit, lie, pose)
-  drawLeg(ctx, dir * (-12 + front * 10), hipY, pose.legBR + sit * 58 * (1 - lie) + lie * 14, 1, true, sit, lie, pose.scratch > 0.4, time, pose.held, pose.bodyRot)
-  drawLeg(ctx, dir * (24 - front * 6) + front * 12 * dir, shoulderY + 2, pose.legFR + lie * 40 + pose.danglers * 30, 1, false, 0, lie, false, time, pose.held, pose.bodyRot)
+  drawLeg(ctx, dir * (-12 + front * 10), hipY, pose.legBR + sit * 58 * (1 - lie) + lie * 14, 1, true, sit, lie, pose.scratch > 0.4, time, pose.held, pose.bodyRot, trick.backPlant * trick.rotation)
+  drawLeg(ctx, dir * (24 - front * 6) + front * 12 * dir, shoulderY + 2, pose.legFR + lie * 40 + pose.danglers * 30, 1, false, 0, lie, false, time, pose.held, pose.bodyRot, trick.frontPlant * trick.rotation)
 
-  const headX = bodyX + dir * (12 + profile * 24) + pose.headX + curl * dir * -8
+  const headX = bodyX + dir * (12 + profile * 24) + pose.headX - dir * trick.headTuck + curl * dir * -8
   const headY = -78 + pose.headY + lie * 16 + curl * 12 + sit * 4
   ctx.save()
   ctx.translate(headX, headY)
+  ctx.rotate(-trick.rotation * Math.abs(pose.trickPivot) * 0.45 * Math.PI / 180)
   ctx.rotate((clamp(pose.headRot, -48, 48) * Math.PI) / 180)
   ctx.rotate((clamp(pose.headTilt, -36, 36) * Math.PI) / 180)
+  const headRotation = clamp(pose.bodyRot, -32, 32) + trick.rotation * (1 - Math.abs(pose.trickPivot) * 0.45)
+    + clamp(pose.headRot, -48, 48) + clamp(pose.headTilt, -36, 36)
   // The skull hides the far ear in a side profile, including large twitches.
   const farEarOpacity = 1 - smoothstep((profile - 0.45) / 0.4)
   if (farEarOpacity > 0) {
     ctx.save()
     ctx.globalAlpha *= farEarOpacity
     const farTwitch = dir < 0 ? pose.earR : pose.earL
-    drawEar(ctx, dir * (-30 * profile + 26 * front), -24, farTwitch, pose.alert, dir, true)
+    drawEar(ctx, dir * (-30 * profile + 26 * front), -24, farTwitch, pose.alert, dir, true, headRotation)
     ctx.restore()
   }
-  drawHead(ctx, dir, profile, front, pose, time)
+  drawHead(ctx, dir, profile, front, pose, time, headRotation)
   ctx.restore()
   ctx.restore()
 }
@@ -124,6 +134,7 @@ function drawHead(
   front: number,
   pose: Pose,
   time: number,
+  headRotation: number,
 ): void {
   const gradient = ctx.createRadialGradient(-10, -16, 4, 0, 0, 42)
   gradient.addColorStop(0, '#f7d7a4')
@@ -138,7 +149,7 @@ function drawHead(
   ctx.stroke()
 
   // The near ear overlaps the skull; drawing both ears behind it hid the twitches.
-  drawEar(ctx, dir * (-22 - front * 4), -20, dir < 0 ? pose.earL : pose.earR, pose.alert, dir, false)
+  drawEar(ctx, dir * (-22 - front * 4), -20, dir < 0 ? pose.earL : pose.earR, pose.alert, dir, false, headRotation)
 
   const muzzleX = dir * (8 + profile * 14)
   const muzzleY = 12 + pose.sniff * 3 + pose.muzzle * 0.6
@@ -269,14 +280,13 @@ function drawEar(
   alert: number,
   dir: number,
   back: boolean,
+  headRotation: number,
 ): void {
   ctx.save()
   ctx.translate(x, y)
   // Mirror the complete ear, including its shape, rest angle and twitch.
   ctx.scale(dir, 1)
-  const flip = back ? -1 : 1
-  const swing = clamp(twitch, -70, 70)
-  ctx.rotate(flip * (0.35 - alert * 0.85) + (swing * Math.PI) / 180 + (back ? 0.15 : -0.05))
+  ctx.rotate(earHinge(twitch, alert, back, headRotation, dir))
   ctx.fillStyle = back ? FUR_MID : FUR
   ctx.strokeStyle = LINE
   ctx.lineWidth = 1.2
@@ -312,6 +322,7 @@ function drawLeg(
   time: number,
   held: number,
   bodyRotation: number,
+  plantRotation = 0,
 ): void {
   ctx.save()
   ctx.translate(hipX, hipY)
@@ -342,7 +353,7 @@ function drawLeg(
     ctx.ellipse(0, 0, 11, 7, 0.2, 0, Math.PI * 2)
     ctx.fill()
   } else {
-    ctx.rotate((clamp(angle, -75, 85) * Math.PI) / 180)
+    ctx.rotate(((clamp(angle, -75, 85) - plantRotation) * Math.PI) / 180)
     capsule(ctx, 0, 0, hind ? 13 : 12, lie > 0.4 ? 26 : 30)
     paw(ctx, 0, lie > 0.4 ? 26 : 30)
   }
@@ -393,14 +404,19 @@ function drawTail(ctx: CanvasRenderingContext2D, dir: number, pose: Pose, wag: n
 }
 
 export function puppyContains(px: number, py: number, pose: Pose, originX: number, originY: number, scale: number): boolean {
-  const dx = (px - originX) / scale - pose.bodyX
+  const localX = (px - originX) / scale - pose.bodyX
   const sit = clamp(pose.sit, 0, 1)
   const lie = clamp(pose.lie, 0, 1)
   const drop = sit * 22 + lie * 34 + pose.bodyY
-  const dy = (py - originY) / scale - drop
+  const localY = (py - originY) / scale - drop
+  const body = unrotatePoint(localX, localY, clamp(pose.bodyRot, -32, 32))
+  const trick = trickFrame(pose)
+  const point = unrotatePoint(body.x - trick.x, body.y - trick.y, trick.rotation)
+  const dx = (point.x + trick.x) / clamp(pose.stretch, 0.75, 1.35)
+  const dy = (point.y + trick.y) / clamp(pose.squash, 0.62, 1.35)
   const inBody = (dx * dx) / (58 * 58) + ((dy + 50) * (dy + 50)) / (40 * 40) <= 1
   const dir = pose.yaw >= 0 ? 1 : -1
-  const hx = dir * 28
+  const hx = dir * (28 - trick.headTuck) + pose.headX
   const hy = -78 + pose.headY
   const hdx = dx - hx
   const hdy = dy - hy

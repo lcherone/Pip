@@ -8,11 +8,11 @@ Turning passes through a front view instead of popping from left to right. Sleep
 
 The playground can play every id, including a full cycle. These are the ids:
 
-**Idle:** idle_stand, idle_sit, idle_lie, gentle_breathing, slow_blink, double_blink, ear_twitch_left, ear_twitch_right, nose_twitch, head_subtle, look_left, look_right, look_up, look_down, look_behind, tail_slow_wag, paw_adjust, weight_shift, head_tilt, body_shake, sniff_ground, sneeze, knead, lick_nose
+**Idle:** idle_stand, idle_sit, sit_lean, sit_sprawl, sit_side, sit_tall, sit_curl, sit_lazy, sit_cocked, sit_loaf, sit_proud, idle_lie, lie_flat, lie_side, lie_curl, lie_belly, lie_stretch, lie_chin, lie_sprawl, lie_tuck, lie_lazy, gentle_breathing, slow_blink, double_blink, ear_twitch_left, ear_twitch_right, nose_twitch, head_subtle, look_left, look_right, look_up, look_down, look_behind, tail_slow_wag, paw_adjust, weight_shift, head_tilt, body_shake, sniff_ground, sneeze, knead, lick_nose
 
 **Movement:** walk_left, walk_right, trot, run, accelerate, decelerate, skid_stop, turn_around, reverse, jump, land, hop, bounce, careful_approach, back_away, follow_cursor, chase_cursor, walk_to, investigate, recover_balance, climb_window
 
-**Rest:** stand_to_sit, sit_to_stand, sit_to_lie, lie_to_sit, curl_up, fall_asleep, sleep_breathe, sleep_twitch, dream_paws, yawn, wake, stretch_front, stretch_full, scratch_ear, scratch_neck, shake_wake, roll_shoulder, lick_paw, doze, stretch_side, pant, snore, dream_run
+**Rest:** stand_to_sit, sit_to_stand, sit_to_lie, lie_to_sit, curl_up, fall_asleep, sleep_breathe, sleep_curl, sleep_sprawl, sleep_side, sleep_belly, sleep_tuck, sleep_loaf, sleep_twitch, dream_paws, yawn, wake, stretch_front, stretch_full, scratch_ear, scratch_neck, shake_wake, roll_shoulder, lick_paw, doze, stretch_side, pant, snore, dream_run
 
 **Emotion:** happy_wag, excited_jump, curious, confused_tilt, surprised, startled, sad, frustrated, proud, celebrate, request_attention, play_bow, bark, whimper, look_expectant, beg, dig, greet, held, tail_chase, paw_wave, wiggle, pounce
 

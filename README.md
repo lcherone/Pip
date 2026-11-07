@@ -214,3 +214,5 @@ This checkout is marked `private` in `package.json` and has no licence file. No 
 <em>“That one got the whole tail.”</em> 🐾</p>
 
 Pip’s living world now includes intentional investigation, cautious routes, moving-window attachment, long perch rests, stable attention and local resting habits. The playground’s **World source** selects repeatable simulations or the actual desktop pet’s read-only debugger. See [Living desktop behaviour and verification](docs/WORLD.md).
+
+Pip can now roll over, wriggle belly-up, balance on his back paws, do a handstand and dance. Click Pip and choose **Show me a trick** to cycle through them. Playful Pip also shows off occasionally or after enough pats, with room/energy checks and cooldowns. Acrobatics stay on open ground; grabbing him safely interrupts a trick. All five are available in the animation playground.

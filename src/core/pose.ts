@@ -9,6 +9,8 @@ export interface Pose {
   bodyX: number
   bodyY: number
   bodyRot: number
+  trickRot: number
+  trickPivot: number
   squash: number
   stretch: number
   headX: number
@@ -56,6 +58,8 @@ export function defaultPose(): Pose {
     bodyX: 0,
     bodyY: 0,
     bodyRot: 0,
+    trickRot: 0,
+    trickPivot: 0,
     squash: 1,
     stretch: 1,
     headX: 0,

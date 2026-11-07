@@ -1,3 +1,4 @@
+import { isTrick } from '../tricks'
 import { AnimationEngine } from './engine'
 import { getClip, listClips } from './clips'
 import { finitePose, type Pose, type PoseKey } from '../pose'
@@ -17,7 +18,7 @@ export interface AnimationReport {
 }
 
 const SCALES: Partial<Record<PoseKey, number>> = {
-  bodyX: 8, bodyY: 8, bodyRot: 12, headX: 8, headY: 8,
+  bodyX: 8, bodyY: 8, bodyRot: 12, trickRot: 18, headX: 8, headY: 8,
   headRot: 12, headTilt: 12, yaw: 0.3, sit: 0.2, lie: 0.2, curl: 0.2,
 }
 
@@ -62,7 +63,7 @@ export function checkAnimation(id: string): AnimationCheck {
   let duration = 0.18
   const physicalTiming = clip.markers?.some((marker) => ['takeoff', 'land', 'impact'].includes(marker.name))
   // Physical takeoff/impact timing and direct pickup are never retimed by the coach.
-  if (baseline.passed && baseline.peak > 0.35 && clip.blend === 'base' && id !== 'held' && !physicalTiming) {
+  if (baseline.passed && baseline.peak > 0.35 && clip.blend === 'base' && id !== 'held' && !isTrick(id) && !physicalTiming) {
     for (const candidate of [0.26, 0.36, 0.48]) {
       if (candidate > clip.duration * 0.6) continue
       const attempt = trial(id, candidate)

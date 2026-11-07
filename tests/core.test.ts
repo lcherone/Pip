@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listClips } from '../src/core/animation/clips'
+import { listClips, LIE_STYLES, SIT_STYLES, SLEEP_STYLES } from '../src/core/animation/clips'
 import { AnimationEngine } from '../src/core/animation/engine'
 import { BehaviourEngine, introAt, type BehaviourInput } from '../src/core/behaviour'
 import { summarizeApproval, CodexSession, type CodexTransport } from '../src/core/codex'
@@ -145,6 +145,17 @@ describe('behaviour', () => {
     expect(seen.has('snore')).toBe(true)
     expect(seen.has('dream_run')).toBe(true)
     expect(seen.has('dream_paws')).toBe(true)
+    expect(seen.size).toBe(SLEEP_STYLES.length)
+  })
+
+  it('changes sitting pose across ten styles', () => {
+    expect(new Set(SIT_STYLES).size).toBe(10)
+    expect(new Set(LIE_STYLES).size).toBe(10)
+    expect(new Set(SLEEP_STYLES).size).toBe(10)
+    const brain = new BehaviourEngine(undefined, 3)
+    const sits = new Set<string | null>()
+    for (let i = 0; i < 130; i++) sits.add(brain.update(input({ now: i + 1, dt: 1, force: { action: 'sit' } })).emote)
+    expect(sits).toEqual(new Set(SIT_STYLES))
   })
 
   it('does not chase in focus mode', () => {

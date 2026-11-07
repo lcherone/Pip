@@ -1,3 +1,4 @@
+import { TRICK_IDS } from '../../core/tricks'
 import { PettingTracker } from '../../core/petting'
 import type { BrainState } from '../../core/assistant/types'
 import { brainAnimation } from '../../core/assistant/types'
@@ -47,6 +48,7 @@ let paused = false
 let hidden = false
 let hover = false
 const petting = new PettingTracker()
+let nextTrick = 0
 let dragging = false
 let dragOffset = { x: 0, y: 0 }
 let pointer = { x: 0, y: 0, speed: 0, seen: 0 }
@@ -298,6 +300,11 @@ menu.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest('button')
   if (!button || button.disabled || button.type === 'submit') return
   const id = button.dataset.id
+  if (id === 'trick') {
+    pendingForce = { action: 'emote', emote: TRICK_IDS[nextTrick++ % TRICK_IDS.length] }
+    showMenu(false)
+    return
+  }
   if (id === 'shared-text') {
     showMenu(false)
     void window.pip.reactToCopiedText()

@@ -1,6 +1,7 @@
-import { clamp, springStep, type Spring } from '../math'
+import { clamp, smoothstep, springStep, type Spring } from '../math'
 import { clonePose, finitePose, lerpPose, POSE_KEYS, poseFrom, type BodyState, type Pose, type PoseKey } from '../pose'
 import { getClip, transitionPath } from './clips'
+import { applyVariation } from './variation'
 import type { Clip, SampleCtx } from './types'
 
 export interface AnimContext {
@@ -62,6 +63,7 @@ export class AnimationEngine {
   paused = false
   private base: ActiveClip | null = null
   private outgoing: ActiveClip | null = null
+  private earRelease = 0
   private overlays = new Map<string, ActiveClip>()
   private queue: string[] = []
   private goal: string | null = null
@@ -132,6 +134,7 @@ export class AnimationEngine {
   reset(state: BodyState = 'sitting'): void {
     this.bodyState = state
     this.base = null
+    this.earRelease = 0
     this.outgoing = null
     this.overlays.clear()
     this.queue = []
@@ -163,7 +166,7 @@ export class AnimationEngine {
 
   /** Locomotion waits for posture bridges and landing recovery to finish. */
   get readyForMovement(): boolean {
-    if (this.queue.length > 0 || this.outgoing) return false
+    if (this.queue.length > 0 || this.outgoing || Math.abs(this.display.trickRot) > 3) return false
     if (this.bodyState !== 'standing' && this.bodyState !== 'ledge') return false
     const clip = this.base && getClip(this.base.id)
     const travelling = Boolean(clip?.loop && (clip.category === 'movement' || clip.id === 'approach_window' || clip.id === 'follow_window' || clip.id === 'sidestep' || clip.id === 'walk_ledge'))
@@ -219,6 +222,7 @@ export class AnimationEngine {
         }
       }
     }
+    this.earRelease = this.base?.finished ? this.earRelease + step : 0
     if (this.outgoing) {
       this.outgoing.weight = Math.max(0, this.outgoing.weight - step / this.blendDuration)
       if (this.outgoing.weight <= 0) this.outgoing = null
@@ -245,7 +249,10 @@ export class AnimationEngine {
     if (!this.base || this.base.finished) return true
     const current = getClip(this.base.id)
     if (!current) return true
-    if (this.bodyState === 'sleeping' && current.interruptibility < 0.2) return incoming.priority >= 9
+    if (this.bodyState === 'sleeping' && current.interruptibility <= 0.2) {
+      if (incoming.priority >= 9) return true
+      return incoming.from.includes('sleeping') && incoming.end === 'sleeping'
+    }
     if (incoming.priority >= current.priority + 3) return true
     return current.interruptibility >= 0.45
   }
@@ -258,6 +265,7 @@ export class AnimationEngine {
     if (this.base) this.outgoing = { ...this.base, weight: 1 }
     this.blendDuration = this.transitionDurations[id] ?? 0.18
     const isGoal = id === this.goal
+    this.earRelease = 0
     this.base = {
       id,
       time: 0,
@@ -297,6 +305,11 @@ export class AnimationEngine {
   private compose(ctx: AnimContext): Pose {
     const sampleCtx: SampleCtx = { phase: ctx.phase, time: this.clock }
     const basePose = this.sampleBase(this.base, sampleCtx) ?? poseFrom({ sit: 1 })
+    if (this.base?.finished) {
+      const release = 1 - smoothstep(this.earRelease / 0.35)
+      basePose.earL *= release
+      basePose.earR *= release
+    }
     let pose = basePose
     if (this.outgoing && this.base) {
       const previous = this.sampleBase(this.outgoing, sampleCtx) ?? basePose
@@ -321,12 +334,16 @@ export class AnimationEngine {
     const clip = getClip(active.id)
     if (!clip || clip.blend !== 'base') return null
     const sampled = clip.sample(clamp(active.time / clip.duration, 0, 0.999), ctx)
-    return poseFrom(sampled as Pose)
+    const pose = poseFrom(sampled as Pose)
+    applyVariation(pose, clip, ctx.time)
+    return pose
   }
 
   private applyProcedural(pose: Pose, ctx: AnimContext, dt: number): void {
     const locks = new Set(this.activeLocks())
     if (ctx.airborne) {
+      pose.trickRot = 0
+      pose.trickPivot = 0
       pose.air = Math.max(pose.air, 1)
       pose.sit = Math.min(pose.sit, 0.15)
       pose.lie = 0
@@ -337,6 +354,8 @@ export class AnimationEngine {
       pose.legFR = Math.min(pose.legFR, -10)
     }
     if (ctx.held) {
+      pose.trickRot = 0
+      pose.trickPivot = 0
       pose.held = 1
       pose.sit = 0
       pose.lie = 0
@@ -432,6 +451,8 @@ const POSE_LIMITS: Partial<Record<PoseKey, [number, number]>> = {
   headRot: [-48, 48],
   headTilt: [-36, 36],
   bodyRot: [-32, 32],
+  trickRot: [-185, 185],
+  trickPivot: [-1, 1],
   earL: [-70, 70],
   earR: [-70, 70],
   tailLift: [-20, 80],
