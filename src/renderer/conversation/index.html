@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>Talk to Pip</title><link rel="stylesheet" href="./style.css" /></head>
+<body>
+<header><div><strong>Pip</strong><span id="connection"></span></div><button id="close" aria-label="Close conversation">×</button></header>
+<main>
+<section class="context"><label>Project<select id="project"><option value="">General conversation</option></select></label><div class="row"><button id="register">Register folder</button><button id="refresh">Refresh context</button><button id="settings">Settings</button></div><p id="context-detail"></p></section>
+<div class="row"><label class="grow">Conversation<select id="history"></select></label><label>Scope<select id="scope"><option value="general">General</option><option value="project">Project</option><option value="task">Task</option><option value="background">Investigation</option></select></label><button id="new">New</button></div>
+<div id="messages" role="log" aria-label="Conversation"></div>
+<p id="activity" role="status"></p>
+<section id="approval" hidden><strong id="approval-title"></strong><pre id="approval-detail"></pre><div id="questions"></div><div class="row"><button id="deny">Deny</button><button id="allow">Allow once</button></div></section>
+<div id="suggestions"></div>
+<form id="prompt-form"><label for="prompt">Ask Pip</label><textarea id="prompt" rows="3" maxlength="16000" placeholder="Ask a question or describe a task…"></textarea><div class="row"><select id="task-mode" aria-label="Task permissions"><option value="inspect">Inspect · read only</option><option value="execute">Work · ask before starting</option></select><button id="send" type="submit" class="primary">Send</button><button id="stop" type="button">Stop</button><button id="retry" type="button">Retry</button><button id="copy" type="button">Copy reply</button></div></form>
+<p id="error" role="alert"></p>
+<details><summary>Task details and available tools</summary><div id="tasks"></div><ul id="tools"></ul><button id="discover">Refresh tools</button></details>
+<details><summary>Project instructions</summary><label>Instructions for the selected project<textarea id="instructions" rows="3" maxlength="4000"></textarea></label><button id="save-instructions">Save instructions</button><button id="remove-project">Forget selected project and its history</button></details>
+<details><summary>Assistant memory</summary><p>Projects, conversation references, explicit messages, task summaries and dismissed suggestions stay on this Mac. Codex keeps its own thread history.</p><button id="clear-memory">Clear Pip’s assistant memory</button></details>
+</main><script type="module" src="./main.ts"></script></body></html>

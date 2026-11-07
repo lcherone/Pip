@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Pip Playground</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <section class="stage-wrap">
+        <div class="banner">Simulated desktop — these events are not the live Mac</div>
+        <div id="stage-frame"><canvas id="stage" width="980" height="620"></canvas></div>
+        <pre id="log"></pre>
+      </section>
+      <aside>
+        <h1>Playground</h1>
+        <div class="row">
+          <button id="mode" type="button">Clip preview</button>
+          <button id="play" type="button">Pause</button>
+          <button id="reset" type="button">Reset pose</button>
+        </div>
+        <label>Search<input id="search" type="search" placeholder="sit, wag, sleep" /></label>
+        <div id="list"></div>
+        <label>Facing (clip preview)
+          <select id="facing">
+            <option value="animation">Animation direction</option>
+            <option value="left">Left</option>
+            <option value="front">Front</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label class="check">Loop<input id="loop" type="checkbox" checked /></label>
+        <label>Speed <output id="speed-out">1</output><input id="speed" type="range" min="0.25" max="2" step="0.05" value="1" /></label>
+        <label>Background<input id="bg" type="color" value="#8ecae6" /></label>
+        <label class="check">Checkerboard<input id="checker" type="checkbox" /></label>
+        <label>Mood
+          <select id="mood">
+            <option>calm</option><option>happy</option><option>playful</option><option>excited</option>
+            <option>curious</option><option>sleepy</option><option>sad</option><option>proud</option><option>confused</option>
+          </select>
+        </label>
+        <h2>Personality</h2>
+        <label>Playfulness<input id="playfulness" type="range" min="0" max="1" step="0.01" value="0.7" /></label>
+        <label>Curiosity<input id="curiosity" type="range" min="0" max="1" step="0.01" value="0.7" /></label>
+        <label>Energy<input id="energy" type="range" min="0" max="1" step="0.01" value="0.6" /></label>
+        <h2>Assistant Brain debugger</h2>
+        <p>Isolated simulation. No real project reads or AI tasks.</p>
+        <div id="brain-events" class="grid"></div>
+        <pre id="brain-debug" aria-live="polite"></pre>
+        <button type="button" id="open-brain">Open live assistant</button>
+        <h2>World</h2>
+        <label>World source<select id="world-source"><option value="simulation">Simulation</option><option value="live">Live desktop (read only)</option></select></label>
+        <label>Simulation mode<select id="world-mode"><option>playful</option><option>chill</option><option>focus</option><option>sleep</option></select></label>
+        <label>Scenario<select id="scenario"></select></label>
+        <button type="button" id="scenario-reset">Restart scenario</button>
+        <label class="check">Show world overlays<input id="world" type="checkbox" checked /></label>
+        <div class="grid" id="world-overlays">
+          <label class="check">Objects<input id="overlay-objects" type="checkbox" checked /></label>
+          <label class="check">Surfaces<input id="overlay-surfaces" type="checkbox" checked /></label>
+          <label class="check">Graph<input id="overlay-graph" type="checkbox" /></label>
+          <label class="check">Path<input id="overlay-path" type="checkbox" checked /></label>
+          <label class="check">Attention<input id="overlay-attention" type="checkbox" checked /></label>
+        </div>
+        <p id="world-summary" role="status"></p>
+        <details><summary>World debugger details</summary><pre id="world-debug"></pre></details>
+        <h2>Simulate</h2>
+        <div class="grid" id="events"></div>
+        <p id="diag"></p>
+        <p id="cycle-status" role="status" aria-live="polite">Cycle clips to check playback. Visual review is separate.</p>
+        <button id="cycle" type="button">Cycle every animation</button>
+      </aside>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

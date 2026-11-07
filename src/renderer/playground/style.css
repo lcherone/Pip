@@ -1,0 +1,31 @@
+:root { color: #3e2c20; background: #fff8f1; font-family: "Avenir Next", "Trebuchet MS", sans-serif; }
+body { margin: 0; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 100vh; }
+.stage-wrap { padding: 16px; display: grid; grid-template-rows: auto auto 1fr; gap: 8px; }
+.banner { background: #ffe8c2; border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+#stage-frame { border-radius: 18px; overflow: hidden; background: #d7ccc2; }
+#stage-frame.checker {
+  background-image: linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+}
+canvas { display: block; width: 100%; height: auto; }
+#log { margin: 0; min-height: 120px; background: #fff; border-radius: 12px; padding: 10px; font-size: 12px; overflow: auto; }
+aside { padding: 16px; background: #fffdf9; border-left: 1px solid #f0e2d4; overflow: auto; }
+h1, h2 { margin: 0 0 8px; }
+h2 { margin-top: 16px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #8a6240; }
+label { display: grid; gap: 4px; font-size: 13px; margin: 8px 0; }
+.row, .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  border: 0; background: #f3e4d4; color: #3e2c20; border-radius: 999px; padding: 7px 10px; font: inherit; cursor: pointer;
+}
+button.active { background: #e2a44b; }
+#list { max-height: 220px; overflow: auto; display: grid; gap: 4px; }
+#list button { text-align: left; border-radius: 8px; }
+input, select { font: inherit; }
+#diag { font-size: 12px; color: #6d5344; }
+
+#brain-debug { max-height: 250px; overflow: auto; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#world-debug { max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
+#world-summary { font-size: 12px; line-height: 1.4; }
+#world-overlays label { display: flex; gap: 4px; align-items: center; }

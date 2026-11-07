@@ -1,0 +1,59 @@
+{
+  "name": "pip",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pip, a living desktop puppy for macOS",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "playground": "electron-vite dev -- --playground",
+    "preplayground": "npm run build:helper",
+    "build": "electron-vite build",
+    "build:helper": "mkdir -p native/bin && swiftc -O -o native/bin/pip-desktop-helper native/helper.swift -framework AppKit -framework CoreGraphics -framework IOKit",
+    "predev": "npm run build:helper",
+    "prebuild": "npm run build:helper",
+    "package": "npm run build && electron-builder --mac dir",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "codegen:codex": "codex app-server generate-ts --out vendor/codex-app-server",
+    "icons": "node scripts/make-icons.mjs",
+    "preview": "electron-vite preview"
+  },
+  "build": {
+    "appId": "com.pip.desktop",
+    "productName": "Pip",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/bin/pip-desktop-helper",
+        "to": "pip-desktop-helper"
+      },
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "identity": null,
+      "target": [
+        "dir"
+      ],
+      "icon": "resources/icon.png"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Pip</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="bubble" class="bubble hidden"></div>
+    <div id="approval" class="approval hidden">
+      <strong id="approval-title"></strong>
+      <pre id="approval-detail"></pre>
+      <div class="row">
+        <button id="deny" type="button">Deny</button>
+        <button id="allow" type="button">Allow</button>
+      </div>
+    </div>
+    <div id="menu" class="menu chat hidden">
+      <p id="chat-line">Hi. I'm right here.</p>
+      <form id="talk" class="talk">
+        <input id="talk-input" maxlength="500" placeholder="Say something…" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+      <button type="button" data-id="shared-text" title="Copy selected text first. Pip reacts locally without saving it.">React to copied text</button>
+      <div class="train">
+        <button type="button" data-id="encourage">More of that</button>
+        <button type="button" data-id="discourage">Not that</button>
+      </div>
+      <p id="train-hint"></p>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
