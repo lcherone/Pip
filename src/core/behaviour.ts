@@ -255,7 +255,7 @@ export class BehaviourEngine {
 
     if (input.mode === 'sleep') this.cancelGoal('sleep mode')
     if (input.mode === 'sleep') return this.output(this.startSleep(input, 'sleep mode'), input)
-    if (input.now < this.settleUntil) {
+    if (input.now < this.settleUntil && !input.events.some(event => event.type === 'petted')) {
       return this.output(this.make({
         action: 'settle', reason: 'settling down after too much attention', posture: 'sitting', gait: 'none', emote: null,
         targetX: this.anchorX, targetY: input.floorY, surfaceId: null, until: this.settleUntil, phase: 'act',
@@ -397,6 +397,8 @@ export class BehaviourEngine {
 
   private inferMood(input: BehaviourInput): Mood {
     if (this.asleep || this.needs.energy < 0.22 || this.needs.rest > 0.78) return 'sleepy'
+    if (this.excitement >= 1.2 && input.mode !== 'focus') return 'excited'
+    if (this.excitement >= 0.3) return 'happy'
     if (input.mode === 'playful' && this.needs.stimulation > 0.55) return 'excited'
     if (this.needs.curiosity > 0.66) return 'curious'
     if (this.personality.playfulness > 0.72 && this.needs.energy > 0.5) return 'playful'
@@ -543,9 +545,41 @@ export class BehaviourEngine {
         speech: input.mode === 'focus' ? null : 'Oh.', fx: 'none', event: 'codex_failed', source: codexFail.source, note,
       }, input)
     }
+    if (clicked?.type === 'petted') {
+      this.cancelGoal('enjoying pats from the user')
+      this.settleUntil = 0
+      this.excitement = Math.min(2.2, this.excitement + 0.24)
+      const excited = this.excitement >= 1.2 && input.mode !== 'focus'
+      const wiggly = this.excitement >= 0.65 && input.mode !== 'focus'
+      const perched = Boolean(input.surfaceId)
+      let emote = 'happy_wag'
+      let posture: Posture = 'sitting'
+      let reason = 'enjoying gentle pats'
+      if (wiggly) {
+        emote = 'wiggle'
+        reason = 'wiggling with every pat'
+      }
+      if (excited) {
+        emote = 'excited_jump'
+        posture = 'standing'
+        reason = 'so excited by all these pats'
+      }
+      if (perched) {
+        emote = 'tail_slow_wag'
+        posture = 'ledge'
+      }
+      this.moodLock = excited ? 'excited' : 'happy'
+      this.mood = this.moodLock
+      this.moodUntil = input.now + 1.6
+      return this.make({
+        action: 'pet', reason, posture, gait: 'none', emote,
+        targetX: null, targetY: null, surfaceId: input.surfaceId ?? null, until: input.now + 1.6, phase: 'act',
+        speech: null, fx: 'hearts', event: 'petted', source: clicked.source, note,
+      }, input)
+    }
     if (clicked) {
       this.cancelGoal('responding to the user')
-      this.excitement += clicked.type === 'petted' ? 0.2 : 0.34
+      this.excitement += 0.34
       this.needs.attention = Math.min(1, this.needs.attention + 0.15)
       if (this.excitement > 1.7) {
         this.settleUntil = input.now + 8
@@ -556,16 +590,14 @@ export class BehaviourEngine {
           speech: null, fx: 'none', event: clicked.type, source: clicked.source, note,
         }, input)
       }
-      const petRoll = this.rng()
-      const petEmote = petRoll > 0.8 ? 'beg' : petRoll > 0.6 ? 'wiggle' : petRoll > 0.4 ? 'paw_wave' : petRoll > 0.2 ? 'knead' : 'happy_wag'
       const clickRoll = this.rng()
-      const emote = this.excitement > 1.1 ? 'pounce' : clicked.type === 'petted' ? petEmote : clickRoll > 0.66 ? 'bark' : clickRoll > 0.33 ? 'lick_nose' : 'head_tilt'
+      const emote = this.excitement > 1.1 ? 'pounce' : clickRoll > 0.66 ? 'bark' : clickRoll > 0.33 ? 'lick_nose' : 'head_tilt'
       const clip = getClip(emote)
       const posture: Posture = clip && clip.from.includes('standing') && !clip.from.includes('sitting') ? 'standing' : 'sitting'
       return this.make({
         action: 'react_click', reason: 'noticed you', posture, gait: 'none', emote,
         targetX: null, targetY: null, surfaceId: null, until: input.now + 1.1, phase: 'act',
-        speech: null, fx: clicked.type === 'petted' ? 'hearts' : 'none', event: clicked.type, source: clicked.source, note,
+        speech: null, fx: 'none', event: clicked.type, source: clicked.source, note,
       }, input)
     }
     if (closed && (!this.goal || this.goal.status !== 'active' || ('windowId' in closed && closed.windowId === this.goal.windowId)) && this.ready('window_closed', input.now, 2)) {
@@ -772,7 +804,16 @@ export class BehaviourEngine {
   }
 
   get worldView(): WorldView | null {
-    return this.worldCache ? { ...this.worldCache.view, activeGoal: this.goal?.status === 'active' ? this.goal : null, path: this.route, attentionState: this.attentionState, perception: this.perception, goalHistory: this.goalHistory, builds: this.worldBuilds } : null
+    if (!this.worldCache) return null
+    return {
+      ...this.worldCache.view,
+      activeGoal: this.goal?.status === 'active' ? this.goal : null,
+      path: this.route,
+      attentionState: this.attentionState,
+      perception: this.perception,
+      goalHistory: this.goalHistory,
+      builds: this.worldBuilds,
+    }
   }
 
   private worldInput(input: BehaviourInput) {

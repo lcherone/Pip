@@ -472,7 +472,7 @@ function frameTick(now: number): void {
     time: now / 1000,
     look: mode === 'behaviour' ? lastLook : null,
     headLook: mode === 'behaviour' ? lastHeadLook : null,
-    balance: movement.supportMotion.x / 30,
+    balance: -movement.supportMotion.x / 35,
     mood, applyMood: true, autoBlink: mode === 'behaviour',
   })
   if (cycling) {

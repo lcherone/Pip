@@ -1,3 +1,4 @@
+import { PettingTracker } from '../../core/petting'
 import type { BrainState } from '../../core/assistant/types'
 import { brainAnimation } from '../../core/assistant/types'
 import type { AnimationReport } from '../../core/animation/coach'
@@ -45,6 +46,7 @@ let inbox: DeskEvent[] = []
 let paused = false
 let hidden = false
 let hover = false
+const petting = new PettingTracker()
 let dragging = false
 let dragOffset = { x: 0, y: 0 }
 let pointer = { x: 0, y: 0, speed: 0, seen: 0 }
@@ -242,10 +244,23 @@ window.addEventListener('pointermove', (event) => {
     showMenu(false)
   }
   if (dragging) dragTo(event)
+  const eligible = event.pointerType === 'mouse' && event.buttons === 0 && !downAt && !dragging && !paused
+    && menu.classList.contains('hidden') && !approvalOpen && !movement.airborne && movement.motion !== 'climb'
+    && event.target === canvas && overPuppy(event)
+  if (petting.sample(performance.now() / 1000, event.screenX, event.screenY, eligible, settings?.scale ?? 1)) {
+    inbox.push({ type: 'petted', source: 'user' })
+  }
+  refreshPolicy()
+})
+
+window.addEventListener('pointerleave', () => {
+  petting.reset()
+  hover = false
   refreshPolicy()
 })
 
 window.addEventListener('pointerdown', (event) => {
+  petting.reset()
   if (event.button !== 0 || (event.target as HTMLElement).closest?.('#menu, #talk, #approval, #brain-suggestion')) return
   if (!overPuppy(event)) return
   downAt = { x: event.screenX, y: event.screenY, t: performance.now() }
